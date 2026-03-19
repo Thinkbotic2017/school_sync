@@ -54,6 +54,9 @@
     "staff": "Staff",
     "parents": "Parents",
     "attendance": "Attendance",
+    "attendance_daily": "Daily Attendance",
+    "attendance_live": "Live Monitor",
+    "attendance_reports": "Reports",
     "exams": "Exams",
     "finance": "Finance",
     "transport": "Transport",
@@ -75,7 +78,9 @@
     "kpi_total_staff": "Total Staff",
     "kpi_attendance": "Attendance %",
     "kpi_fee_collection": "Fee Collection %",
-    "no_data_yet": "No data yet"
+    "no_data_yet": "No data yet",
+    "today": "Today",
+    "todays_activity": "Today's Activity"
   },
   "academic": {
     "year": {
@@ -220,5 +225,57 @@
   },
   "bulk_import": {
     "template_description": "Download the CSV template and fill in student data. Keep the headers exactly as-is."
+  },
+  "attendance": {
+    "title": "Attendance",
+    "live": {
+      "title": "Live Attendance Monitor",
+      "subtitle": "Real-time student check-ins",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "total": "Total Students",
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late",
+      "not_marked": "Not Marked",
+      "feed_title": "Recent Check-ins",
+      "no_events": "No check-ins recorded today"
+    },
+    "daily": {
+      "title": "Daily Attendance",
+      "description": "Mark and review attendance for a class on a specific date",
+      "select_date": "Select date",
+      "select_class": "Select class",
+      "select_section": "Select section",
+      "select_status": "Set status",
+      "checkin_time": "Check-in",
+      "mark_all_present": "Mark All Present",
+      "save_changes": "Save Changes",
+      "saved": "Attendance saved successfully",
+      "no_class_selected": "Select a class to view attendance",
+      "no_students": "No attendance records found for this class and date",
+      "unsaved_changes": "unsaved change(s)"
+    },
+    "reports": {
+      "title": "Attendance Reports",
+      "description": "Summary report for a date range",
+      "start_date": "Start date",
+      "end_date": "End date",
+      "total_days": "Total Days",
+      "present_days": "Present",
+      "absent_days": "Absent",
+      "late_days": "Late",
+      "attendance_pct": "Attendance %",
+      "export_csv": "Export CSV",
+      "chart_title": "Top 10 Students by Attendance %",
+      "no_data": "No attendance data for the selected period"
+    },
+    "status": {
+      "PRESENT": "Present",
+      "ABSENT": "Absent",
+      "LATE": "Late",
+      "HALF_DAY": "Half Day",
+      "EXCUSED": "Excused"
+    }
   }
 }

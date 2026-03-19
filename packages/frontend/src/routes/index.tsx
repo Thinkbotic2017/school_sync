@@ -12,6 +12,9 @@ import { StudentListPage } from '@/pages/students/StudentListPage';
 import { StudentFormPage } from '@/pages/students/StudentFormPage';
 import { StudentDetailPage } from '@/pages/students/StudentDetailPage';
 import { BulkImportPage } from '@/pages/students/BulkImportPage';
+import { LiveMonitorPage } from '@/pages/attendance/LiveMonitorPage';
+import { AttendancePage } from '@/pages/attendance/AttendancePage';
+import { AttendanceReportsPage } from '@/pages/attendance/AttendanceReportsPage';
 import { useAuthStore } from '@/store/auth.store';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -54,6 +57,9 @@ const router = createBrowserRouter([
       { path: '/students/bulk-import', element: <BulkImportPage /> },
       { path: '/students/:id', element: <StudentDetailPage /> },
       { path: '/students/:id/edit', element: <StudentFormPage /> },
+      { path: '/attendance', element: <AttendancePage /> },
+      { path: '/attendance/live', element: <LiveMonitorPage /> },
+      { path: '/attendance/reports', element: <AttendanceReportsPage /> },
     ],
   },
   { path: '/', element: <Navigate to="/dashboard" replace /> },

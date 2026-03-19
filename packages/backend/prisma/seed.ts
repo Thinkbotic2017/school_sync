@@ -6,6 +6,8 @@ import {
   SubjectType,
   Gender,
   StudentStatus,
+  AttendanceStatus,
+  AttendanceSource,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
@@ -28,8 +30,17 @@ function oneYearFromNow(): Date {
   return d;
 }
 
+// Helper: set RLS tenant context for seed operations
+async function setTenantContext(tenantId: string) {
+  await prisma.$executeRawUnsafe(`SELECT set_config('app.current_tenant_id', $1, false)`, tenantId);
+}
+
 async function main() {
   console.log('🌱 Seeding database...\n');
+
+  // Disable RLS for seed by setting a superuser-compatible bypass via set_config
+  // Tenant tables (Tenant, SubscriptionHistory) have no RLS — safe to write directly
+  // Tenant-scoped tables need the context set before each write batch
 
   const passwordHash = await bcrypt.hash('Admin@123', BCRYPT_SALT_ROUNDS);
 
@@ -59,6 +70,9 @@ async function main() {
   console.log(`   Plan:        ${addis.plan}`);
   console.log(`   License:     ${addis.licenseKey}`);
   console.log(`   Expires:     ${addis.licenseExpiresAt.toISOString().split('T')[0]}\n`);
+
+  // Set RLS context for Addis tenant — all subsequent writes must match this tenantId
+  await setTenantContext(addis.id);
 
   const addisAdmin = await prisma.user.upsert({
     where: { tenantId_email: { tenantId: addis.id, email: 'admin@addis.edu.et' } },
@@ -105,6 +119,9 @@ async function main() {
   console.log(`   License:     ${hawassa.licenseKey}`);
   console.log(`   Expires:     ${hawassa.licenseExpiresAt.toISOString().split('T')[0]}\n`);
 
+  // Switch RLS context to Hawassa
+  await setTenantContext(hawassa.id);
+
   const hawassaAdmin = await prisma.user.upsert({
     where: { tenantId_email: { tenantId: hawassa.id, email: 'admin@hawassa.edu.et' } },
     update: {},
@@ -126,6 +143,9 @@ async function main() {
   // ════════════════════════════════════════════════════════════════════════════
   // PHASE 2 — Academic Structure for Addis International School
   // ════════════════════════════════════════════════════════════════════════════
+
+  // Switch RLS context back to Addis for all academic + student + attendance data
+  await setTenantContext(addis.id);
 
   // ── Academic Year ─────────────────────────────────────────────────────────
   console.log('📚 Creating academic year...');
@@ -256,28 +276,29 @@ async function main() {
     },
   ];
 
-  const subjects = await Promise.all(
-    subjectDefs.map((s) =>
-      prisma.subject.upsert({
-        where: {
-          tenantId_code_academicYearId: {
-            tenantId: addis.id,
-            code: s.code,
-            academicYearId: academicYear.id,
-          },
-        },
-        update: {},
-        create: {
+  // Sequential upserts to avoid connection pool stealing the tenant context
+  const subjects = [];
+  for (const s of subjectDefs) {
+    const subject = await prisma.subject.upsert({
+      where: {
+        tenantId_code_academicYearId: {
           tenantId: addis.id,
-          academicYearId: academicYear.id,
-          name: s.name,
-          nameAmharic: s.nameAmharic,
           code: s.code,
-          type: s.type,
+          academicYearId: academicYear.id,
         },
-      }),
-    ),
-  );
+      },
+      update: {},
+      create: {
+        tenantId: addis.id,
+        academicYearId: academicYear.id,
+        name: s.name,
+        nameAmharic: s.nameAmharic,
+        code: s.code,
+        type: s.type,
+      },
+    });
+    subjects.push(subject);
+  }
 
   subjects.forEach((s) => console.log(`   ✅ ${s.name} (${s.code})`));
   console.log();
@@ -632,33 +653,34 @@ async function main() {
     },
   ];
 
-  const students = await Promise.all(
-    studentDefs.map((s) =>
-      prisma.student.upsert({
-        where: {
-          tenantId_admissionNumber: {
-            tenantId: addis.id,
-            admissionNumber: s.admissionNumber,
-          },
-        },
-        update: {},
-        create: {
+  // Sequential upserts to keep same connection/context
+  const students = [];
+  for (const s of studentDefs) {
+    const student = await prisma.student.upsert({
+      where: {
+        tenantId_admissionNumber: {
           tenantId: addis.id,
           admissionNumber: s.admissionNumber,
-          rfidCardNumber: s.rfidCardNumber,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          dateOfBirth: s.dateOfBirth,
-          gender: s.gender,
-          nationality: 'Ethiopian',
-          classId: s.classId,
-          sectionId: s.sectionId,
-          admissionDate: new Date('2025-09-11'),
-          status: StudentStatus.ACTIVE,
         },
-      }),
-    ),
-  );
+      },
+      update: {},
+      create: {
+        tenantId: addis.id,
+        admissionNumber: s.admissionNumber,
+        rfidCardNumber: s.rfidCardNumber,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        dateOfBirth: s.dateOfBirth,
+        gender: s.gender,
+        nationality: 'Ethiopian',
+        classId: s.classId,
+        sectionId: s.sectionId,
+        admissionDate: new Date('2025-09-11'),
+        status: StudentStatus.ACTIVE,
+      },
+    });
+    students.push(student);
+  }
 
   console.log(`   ✅ ${students.length} students created\n`);
 
@@ -788,6 +810,139 @@ async function main() {
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 3 — Attendance Seed Data
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── SchoolConfig for both tenants ─────────────────────────────────────────
+  console.log('\n⚙️  Creating school configs...');
+
+  // Addis SchoolConfig (context already set to addis.id)
+  await prisma.schoolConfig.upsert({
+    where: { tenantId: addis.id },
+    update: {},
+    create: {
+      tenantId: addis.id,
+      schoolStartTime: '08:00',
+      graceMinutes: 15,
+      schoolEndTime: '15:30',
+      timezone: 'Africa/Addis_Ababa',
+    },
+  });
+
+  // Switch to Hawassa for Hawassa SchoolConfig
+  await setTenantContext(hawassa.id);
+  await prisma.schoolConfig.upsert({
+    where: { tenantId: hawassa.id },
+    update: {},
+    create: {
+      tenantId: hawassa.id,
+      schoolStartTime: '08:00',
+      graceMinutes: 15,
+      schoolEndTime: '15:30',
+      timezone: 'Africa/Addis_Ababa',
+    },
+  });
+
+  // Switch back to Addis for attendance seeding
+  await setTenantContext(addis.id);
+
+  console.log('   ✅ SchoolConfig created for both tenants');
+
+  // ── 7 days of attendance for all 30 Addis students ────────────────────────
+  console.log('\n📋 Seeding 7 days of attendance data...');
+
+  /**
+   * Returns the last N weekdays (Mon-Fri) going backwards from today.
+   * "Today" is excluded — we generate historical data only.
+   */
+  function getLastNWeekdays(n: number): Date[] {
+    const days: Date[] = [];
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    while (days.length < n) {
+      cursor.setDate(cursor.getDate() - 1);
+      const dow = cursor.getDay(); // 0=Sun, 6=Sat
+      if (dow !== 0 && dow !== 6) {
+        days.push(new Date(cursor));
+      }
+    }
+    return days; // Most-recent first
+  }
+
+  /**
+   * Seeded PRNG — deterministic per student+day so re-seeding is idempotent.
+   */
+  function seededRandom(seed: number): number {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+
+  const weekdays = getLastNWeekdays(7);
+
+  // Build attendance records in batches using createMany (skip duplicates)
+  type AttendanceCreateInput = {
+    tenantId: string;
+    studentId: string;
+    date: Date;
+    status: AttendanceStatus;
+    checkInTime: Date | null;
+    source: AttendanceSource;
+  };
+
+  const attendanceRecords: AttendanceCreateInput[] = [];
+
+  weekdays.forEach((day, dayIndex) => {
+    students.forEach((student, studentIndex) => {
+      // Deterministic roll: 85% PRESENT, 10% LATE, 5% ABSENT
+      const roll = seededRandom(studentIndex * 100 + dayIndex);
+
+      let status: AttendanceStatus;
+      let checkInTime: Date | null = null;
+
+      if (roll < 0.85) {
+        status = AttendanceStatus.PRESENT;
+        // Check-in between 07:30 and 07:59
+        const minuteOffset = Math.floor(seededRandom(studentIndex * 200 + dayIndex) * 30);
+        checkInTime = new Date(day);
+        checkInTime.setHours(7, 30 + minuteOffset, 0, 0);
+      } else if (roll < 0.95) {
+        status = AttendanceStatus.LATE;
+        // Check-in between 08:16 and 09:00
+        const minuteOffset = Math.floor(seededRandom(studentIndex * 300 + dayIndex) * 44);
+        checkInTime = new Date(day);
+        checkInTime.setHours(8, 16 + minuteOffset, 0, 0);
+      } else {
+        status = AttendanceStatus.ABSENT;
+        checkInTime = null;
+      }
+
+      // Most records via RFID, a few via MANUAL
+      const source: AttendanceSource =
+        seededRandom(studentIndex * 400 + dayIndex) > 0.1
+          ? AttendanceSource.RFID
+          : AttendanceSource.MANUAL;
+
+      attendanceRecords.push({
+        tenantId: addis.id,
+        studentId: student.id,
+        date: day,
+        status,
+        checkInTime,
+        source,
+      });
+    });
+  });
+
+  // createMany with skipDuplicates so re-running seed is safe
+  const attendanceResult = await prisma.attendance.createMany({
+    data: attendanceRecords,
+    skipDuplicates: true,
+  });
+
+  console.log(`   ✅ ${attendanceResult.count} attendance records created (${weekdays.length} days × ${students.length} students)`);
+
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log('\n' + '─'.repeat(60));
   console.log('🎉 Seed complete!\n');
@@ -807,6 +962,8 @@ async function main() {
   console.log(`${'Class-Subject Links (Addis)'.padEnd(30)} ${'18'.padStart(6)}`);
   console.log(`${'Students (Addis)'.padEnd(30)} ${'30'.padStart(6)}`);
   console.log(`${'Parents (Addis)'.padEnd(30)} ${'10'.padStart(6)}`);
+  console.log(`${'School Configs'.padEnd(30)} ${'2'.padStart(6)}`);
+  console.log(`${'Attendance Records (Addis)'.padEnd(30)} ${'~210'.padStart(6)}`);
   console.log('─'.repeat(60));
 
   console.log('\nLogin credentials:');

@@ -193,12 +193,64 @@ model Student {
   section     Section            @relation(fields: [sectionId], references: [id])
   parentLinks ParentStudent[]
   documents   StudentDocument[]
+  attendances Attendance[]
 
   @@unique([tenantId, admissionNumber])
   @@index([tenantId])
   @@index([tenantId, classId])
   @@index([tenantId, sectionId])
   @@index([rfidCardNumber])
+}
+
+// ============================================================
+// Tenant-Scoped: Attendance
+// ============================================================
+
+model Attendance {
+  id           String           @id @default(uuid())
+  tenantId     String
+  studentId    String
+  date         DateTime         @db.Date
+  status       AttendanceStatus @default(PRESENT)
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  source       AttendanceSource
+  rfidReaderId String?
+  remarks      String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([tenantId, studentId, date])
+  @@index([tenantId])
+  @@index([tenantId, date])
+  @@index([tenantId, studentId])
+}
+
+model SchoolConfig {
+  id              String   @id @default(uuid())
+  tenantId        String   @unique
+  schoolStartTime String   @default("08:00")
+  graceMinutes    Int      @default(15)
+  schoolEndTime   String   @default("15:30")
+  timezone        String   @default("Africa/Addis_Ababa")
+  updatedAt       DateTime @updatedAt
+}
+
+model RfidEventLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  cardNumber String
+  readerId  String?
+  timestamp DateTime
+  processed Boolean  @default(false)
+  studentId String?
+  action    String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([cardNumber, timestamp])
 }
 
 model ParentStudent {
@@ -284,4 +336,18 @@ enum StudentStatus {
   GRADUATED
   TRANSFERRED
   SUSPENDED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  EXCUSED
+}
+
+enum AttendanceSource {
+  RFID
+  MANUAL
+  APP
 }

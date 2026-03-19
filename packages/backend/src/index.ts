@@ -10,6 +10,7 @@ import { mkdirSync } from 'fs';
 import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { connectRedis, redis } from './config/redis';
+import { initSocket } from './config/socket';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticate } from './middleware/auth';
 import { resolveTenant } from './middleware/tenant';
@@ -21,6 +22,7 @@ import { classRouter } from './modules/class/class.routes';
 import { sectionRouter } from './modules/section/section.routes';
 import { subjectRouter } from './modules/subject/subject.routes';
 import { classSubjectRouter } from './modules/class-subject/class-subject.routes';
+import { attendanceRouter } from './modules/attendance/attendance.routes';
 import { logger } from './utils/logger';
 
 // Ensure upload subdirectories exist (multer does not auto-create nested dirs)
@@ -30,6 +32,7 @@ mkdirSync('uploads/imports', { recursive: true });
 
 const app = express();
 const httpServer = createServer(app);
+initSocket(httpServer);
 
 // Security & parsing middleware
 app.use(helmet());
@@ -71,6 +74,11 @@ app.use(`${apiBase}/classes`, ...tenantMiddleware, classRouter);
 app.use(`${apiBase}/sections`, ...tenantMiddleware, sectionRouter);
 app.use(`${apiBase}/subjects`, ...tenantMiddleware, subjectRouter);
 app.use(`${apiBase}/class-subjects`, ...tenantMiddleware, classSubjectRouter);
+
+// Attendance router manages its own auth:
+// - /rfid-event uses X-Reader-Secret header auth (RFID agent process)
+// - all other routes use the standard JWT tenantMiddleware chain
+app.use(`${apiBase}/attendance`, attendanceRouter);
 
 // 404 handler
 app.use((_req, res) => {

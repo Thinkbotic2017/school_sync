@@ -12,31 +12,31 @@
 
 ## Tech Stack
 
-| Layer              | Technology                                    |
-| ------------------ | --------------------------------------------- |
-| Backend            | Node.js + Express.js + TypeScript             |
-| Frontend (Admin)   | React 18 + TypeScript + Vite + Tailwind CSS v4 |
-| UI Components      | shadcn/ui (Radix primitives) — MANDATORY      |
-| Data Tables        | TanStack Table + shadcn DataTable pattern      |
-| Data Fetching      | TanStack React Query (server state cache)      |
-| Forms              | React Hook Form + @hookform/resolvers + Zod    |
-| State Management   | Zustand (client state only)                    |
-| i18n (Frontend)    | react-i18next + i18next-browser-languagedetector |
-| Fonts              | Fontsource (Noto Sans Ethiopic Variable + display font) |
-| Charts             | Recharts (dashboard analytics)                 |
-| Mobile App         | Flutter (Dart) — Parent & Student Portal      |
-| Database           | PostgreSQL 15+ (multi-tenant, RLS)            |
-| ORM                | Prisma                                        |
-| Cache              | Redis                                         |
-| Auth               | JWT (access + refresh tokens) + bcrypt        |
-| File Storage       | S3-compatible (AWS S3 or MinIO for self-host) |
-| Real-time          | Socket.IO (attendance events, notifications)  |
-| Task Queue         | BullMQ (Redis-backed)                         |
-| API Docs           | Swagger / OpenAPI 3.0                         |
-| Testing            | Jest (backend) + React Testing Library (frontend) + Flutter test |
-| CI/CD              | GitHub Actions                                |
-| Containerization   | Docker + Docker Compose                       |
-| Reverse Proxy      | Nginx                                         |
+| Layer            | Technology                                                       |
+| ---------------- | ---------------------------------------------------------------- |
+| Backend          | Node.js + Express.js + TypeScript                                |
+| Frontend (Admin) | React 18 + TypeScript + Vite + Tailwind CSS v4                   |
+| UI Components    | shadcn/ui (Radix primitives) — MANDATORY                         |
+| Data Tables      | TanStack Table + shadcn DataTable pattern                        |
+| Data Fetching    | TanStack React Query (server state cache)                        |
+| Forms            | React Hook Form + @hookform/resolvers + Zod                      |
+| State Management | Zustand (client state only)                                      |
+| i18n (Frontend)  | react-i18next + i18next-browser-languagedetector                 |
+| Fonts            | Fontsource (Noto Sans Ethiopic Variable + display font)          |
+| Charts           | Recharts (dashboard analytics)                                   |
+| Mobile App       | Flutter (Dart) — Parent & Student Portal                         |
+| Database         | PostgreSQL 15+ (multi-tenant, RLS)                               |
+| ORM              | Prisma                                                           |
+| Cache            | Redis                                                            |
+| Auth             | JWT (access + refresh tokens) + bcrypt                           |
+| File Storage     | S3-compatible (AWS S3 or MinIO for self-host)                    |
+| Real-time        | Socket.IO (attendance events, notifications)                     |
+| Task Queue       | BullMQ (Redis-backed)                                            |
+| API Docs         | Swagger / OpenAPI 3.0                                            |
+| Testing          | Jest (backend) + React Testing Library (frontend) + Flutter test |
+| CI/CD            | GitHub Actions                                                   |
+| Containerization | Docker + Docker Compose                                          |
+| Reverse Proxy    | Nginx                                                            |
 
 ### Reference Implementation
 
@@ -115,14 +115,14 @@ claude mcp add github -- npx -y @modelcontextprotocol/server-github
 
 ### What Each Skill Layer Does
 
-| Layer | Skills | Purpose |
-|-------|--------|---------|
-| **Aesthetic Direction** | `frontend-design` + `impeccable` + `taste-skill` | Forces bold design choices, bans generic aesthetics, provides audit tools |
-| **Component Accuracy** | `shadcn/ui skill` + `shadcn MCP` + `ShadcnBlocks` | Prevents hallucinated props, provides 2,500+ pre-built blocks |
-| **Quality Enforcement** | `vercel agent-skills` + `interface-design` | 100+ web design rules, React optimization, cross-session design memory |
-| **Code Quality** | `code-review` + `code-simplifier` + `engineering-skills` | Multi-agent PR review, security auditing, dependency scanning |
-| **Dev Workflow** | `feature-dev` + `commit-commands` + `hookify` + `tresor` | Feature scaffolding, smart commits, auto-test generation, secret scanning |
-| **Infrastructure** | `postgres` + `context7` + `github` + `firebase` MCPs | Direct DB access, live docs, GitHub integration, push notification setup |
+| Layer                   | Skills                                                   | Purpose                                                                   |
+| ----------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Aesthetic Direction** | `frontend-design` + `impeccable` + `taste-skill`         | Forces bold design choices, bans generic aesthetics, provides audit tools |
+| **Component Accuracy**  | `shadcn/ui skill` + `shadcn MCP` + `ShadcnBlocks`        | Prevents hallucinated props, provides 2,500+ pre-built blocks             |
+| **Quality Enforcement** | `vercel agent-skills` + `interface-design`               | 100+ web design rules, React optimization, cross-session design memory    |
+| **Code Quality**        | `code-review` + `code-simplifier` + `engineering-skills` | Multi-agent PR review, security auditing, dependency scanning             |
+| **Dev Workflow**        | `feature-dev` + `commit-commands` + `hookify` + `tresor` | Feature scaffolding, smart commits, auto-test generation, secret scanning |
+| **Infrastructure**      | `postgres` + `context7` + `github` + `firebase` MCPs     | Direct DB access, live docs, GitHub integration, push notification setup  |
 
 ---
 
@@ -229,7 +229,7 @@ Info / Excused / Trial      → blue    (bg-blue-100 text-blue-800 dark:bg-blue-
 /* pnpm add @fontsource-variable/noto-sans-ethiopic */
 
 :root {
-  --font-ethiopic: 'Noto Sans Ethiopic Variable', sans-serif;
+  --font-ethiopic: "Noto Sans Ethiopic Variable", sans-serif;
   --font-display: /* your chosen English display font */;
   --font-body: /* your chosen English body font */;
 }
@@ -237,8 +237,8 @@ Info / Excused / Trial      → blue    (bg-blue-100 text-blue-800 dark:bg-blue-
 /* Amharic text needs larger sizing and more line height than Latin */
 [lang="am"] {
   font-family: var(--font-ethiopic);
-  font-size: 1rem;        /* 16px minimum for body — Ge'ez chars are complex */
-  line-height: 1.7;       /* vs 1.5 for English */
+  font-size: 1rem; /* 16px minimum for body — Ge'ez chars are complex */
+  line-height: 1.7; /* vs 1.5 for English */
   letter-spacing: 0.01em; /* slight spacing helps readability */
 }
 
@@ -257,6 +257,7 @@ Use the `interface-design` skill to store design decisions in `.interface-design
 
 ```markdown
 # .interface-design/system.md (auto-generated by interface-design skill)
+
 - Primary color: [chosen]
 - Surface depth strategy: [flat/layered/glassmorphism]
 - Border radius scale: [sharp/soft/pill]
@@ -1170,9 +1171,7 @@ GET    /v1/{resource}/export           → Export CSV/PDF
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Validation failed",
-    "details": [
-      { "field": "email", "message": "Invalid email format" }
-    ]
+    "details": [{ "field": "email", "message": "Invalid email format" }]
   }
 }
 ```
@@ -1184,12 +1183,14 @@ GET    /v1/{resource}/export           → Export CSV/PDF
 ### 1. RFID Attendance System
 
 **Hardware Stack (Supplied by Infosware):**
+
 - Mifare Classic 1K / Mifare Ultralight cards
 - NFC-compatible USB/Ethernet readers
 - Reader communicates via serial/TCP to a local agent app
 - Agent app sends card tap events to the API via WebSocket
 
 **Flow:**
+
 ```
 RFID Card Tap → Reader Hardware → Local Agent (Python/Node)
   → WebSocket → API Server → Process Attendance
@@ -1198,6 +1199,7 @@ RFID Card Tap → Reader Hardware → Local Agent (Python/Node)
 ```
 
 **API Endpoints:**
+
 ```
 POST   /v1/attendance/rfid-event       → Process card tap (from agent)
 GET    /v1/attendance/live             → WebSocket stream for real-time monitor
@@ -1208,6 +1210,7 @@ PUT    /v1/attendance/:id              → Edit attendance record
 ```
 
 **Business Rules:**
+
 - First tap of the day = CHECK_IN, second tap = CHECK_OUT
 - If check-in is after school start time + grace period → status = LATE
 - Duplicate taps within 5 minutes = ignored (debounce)
@@ -1217,12 +1220,14 @@ PUT    /v1/attendance/:id              → Edit attendance record
 ### 2. Transport Module
 
 **GPS Tracking:**
+
 - GPS devices on buses send location every 30 seconds
 - API endpoint ingests GPS data: `POST /v1/transport/gps-log`
 - Real-time bus location pushed to parents via Socket.IO
 - Geofence alerts: notify parents when bus is within 500m of their stop
 
 **Bus RFID Attendance:**
+
 - RFID reader on each bus
 - Card tap on boarding = BOARDING event
 - Card tap on alighting = ALIGHTING event
@@ -1232,27 +1237,29 @@ PUT    /v1/attendance/:id              → Edit attendance record
 
 **Plan Tiers:**
 
-| Feature                  | Starter    | Professional | Enterprise  |
-| ------------------------ | ---------- | ------------ | ----------- |
-| Max Students             | 500        | 2,000        | Unlimited   |
-| Max Staff                | 50         | 200          | Unlimited   |
-| Modules                  | Core only  | Core + Transport | All       |
-| Mobile App               | Yes        | Yes          | Yes         |
-| SMS Notifications        | No         | Yes          | Yes         |
-| API Access               | No         | No           | Yes         |
-| Custom Branding          | Basic      | Full         | Full + Domain |
-| Support                  | Email      | Priority     | Dedicated   |
+| Feature           | Starter   | Professional     | Enterprise    |
+| ----------------- | --------- | ---------------- | ------------- |
+| Max Students      | 500       | 2,000            | Unlimited     |
+| Max Staff         | 50        | 200              | Unlimited     |
+| Modules           | Core only | Core + Transport | All           |
+| Mobile App        | Yes       | Yes              | Yes           |
+| SMS Notifications | No        | Yes              | Yes           |
+| API Access        | No        | No               | Yes           |
+| Custom Branding   | Basic     | Full             | Full + Domain |
+| Support           | Email     | Priority         | Dedicated     |
 
 **License Enforcement Middleware:**
+
 ```typescript
 // Check on every tenant-scoped request
 const checkLicense = async (req, res, next) => {
   const tenant = req.tenant;
-  if (!tenant.isActive) throw new ForbiddenError('Tenant deactivated');
-  if (tenant.licenseExpiresAt < new Date()) throw new ForbiddenError('License expired');
+  if (!tenant.isActive) throw new ForbiddenError("Tenant deactivated");
+  if (tenant.licenseExpiresAt < new Date())
+    throw new ForbiddenError("License expired");
   // Check module access based on plan
-  if (req.path.includes('/transport') && tenant.plan === 'STARTER') {
-    throw new ForbiddenError('Transport module not available on Starter plan');
+  if (req.path.includes("/transport") && tenant.plan === "STARTER") {
+    throw new ForbiddenError("Transport module not available on Starter plan");
   }
   // Check student/staff limits
   next();
@@ -1260,6 +1267,7 @@ const checkLicense = async (req, res, next) => {
 ```
 
 **Partner Admin Dashboard (MSquare):**
+
 - View all schools under their management
 - Create new school tenants
 - Manage subscriptions and license keys
@@ -1269,6 +1277,7 @@ const checkLicense = async (req, res, next) => {
 ### 4. Localization
 
 **Ethiopian Calendar Support:**
+
 - Ethiopian calendar is ~7-8 years behind Gregorian
 - New Year starts on September 11 (or 12 in leap years)
 - 13 months: 12 months of 30 days + 1 month of 5-6 days
@@ -1277,6 +1286,7 @@ const checkLicense = async (req, res, next) => {
 - Academic year follows Ethiopian calendar by default
 
 **Amharic Language & Ge'ez Script:**
+
 - Use react-i18next (frontend) and custom i18n service (backend)
 - All UI strings externalized to locale JSON files via `t()` function
 - Amharic uses Ge'ez script — ensure UTF-8 everywhere
@@ -1284,6 +1294,7 @@ const checkLicense = async (req, res, next) => {
 - PDF report generation must support Ge'ez script fonts (use Noto Sans Ethiopic)
 
 **Font Stack:**
+
 - Install via Fontsource: `pnpm add @fontsource-variable/noto-sans-ethiopic`
 - Amharic body text: minimum 16px, line-height 1.7, letter-spacing 0.01em
 - English body text: 14px, line-height 1.5
@@ -1292,11 +1303,13 @@ const checkLicense = async (req, res, next) => {
 - Never hardcode font sizes in components — use CSS variables that respond to locale
 
 **Ethiopian Grading System:**
+
 - Schools may use different grading scales
 - Common: A (90-100), B (80-89), C (70-79), D (60-69), F (below 60)
 - Configurable per tenant via GradeScale table
 
 **i18n Key Naming Convention:**
+
 ```
 module.page.element → e.g., students.list.title, attendance.status.present
 common.actions.save, common.actions.cancel, common.actions.delete
@@ -1330,6 +1343,7 @@ class EthioTelecomSMSProvider extends SMSProvider {
 ```
 
 **Notification Events (triggered automatically):**
+
 - Student RFID check-in/check-out → Push + SMS to parent
 - Bus boarding/alighting → Push to parent
 - Fee due reminder (7 days before, 1 day before, overdue) → Push + SMS
@@ -1340,6 +1354,7 @@ class EthioTelecomSMSProvider extends SMSProvider {
 ### 6. Finance Module (Record-Keeping + Future Payment Ready)
 
 **Current Scope:**
+
 - Fee structure definition per class per academic year
 - Auto-generate fee records for enrolled students
 - Manual payment recording (cash, bank transfer, mobile money)
@@ -1349,10 +1364,15 @@ class EthioTelecomSMSProvider extends SMSProvider {
 - Fee waiver and discount management
 
 **Future Payment Gateway Abstraction:**
+
 ```typescript
 // Ready for Telebirr, CBE Birr, or international gateways
 interface PaymentGateway {
-  initiate(amount: number, currency: string, metadata: any): Promise<PaymentSession>;
+  initiate(
+    amount: number,
+    currency: string,
+    metadata: any,
+  ): Promise<PaymentSession>;
   verify(transactionId: string): Promise<PaymentResult>;
   webhook(payload: any): Promise<void>;
 }
@@ -1364,17 +1384,37 @@ interface PaymentGateway {
 
 ```typescript
 const PERMISSIONS = {
-  SUPER_ADMIN: ['*'],                                          // Full platform access
-  PARTNER_ADMIN: ['tenant:*', 'license:*', 'analytics:read'],// MSquare admin
-  SCHOOL_ADMIN: ['school:*'],                                 // Full school access
-  PRINCIPAL: ['school:read', 'student:*', 'teacher:*', 'exam:*', 'report:*', 'attendance:*'],
-  TEACHER: ['student:read', 'attendance:write', 'exam:write', 'homework:*', 'communication:write'],
-  ACCOUNTANT: ['finance:*', 'student:read', 'report:read'],
-  PARENT: ['child:read', 'attendance:read', 'exam:read', 'homework:read', 'finance:read', 'communication:read_write'],
-  STUDENT: ['self:read', 'homework:read_write', 'exam:read'],
-  TRANSPORT_MANAGER: ['transport:*', 'student:read'],
-  BUS_DRIVER: ['transport:read', 'bus_attendance:write'],
-  RECEPTIONIST: ['student:read', 'attendance:read', 'visitor:*'],
+  SUPER_ADMIN: ["*"], // Full platform access
+  PARTNER_ADMIN: ["tenant:*", "license:*", "analytics:read"], // MSquare admin
+  SCHOOL_ADMIN: ["school:*"], // Full school access
+  PRINCIPAL: [
+    "school:read",
+    "student:*",
+    "teacher:*",
+    "exam:*",
+    "report:*",
+    "attendance:*",
+  ],
+  TEACHER: [
+    "student:read",
+    "attendance:write",
+    "exam:write",
+    "homework:*",
+    "communication:write",
+  ],
+  ACCOUNTANT: ["finance:*", "student:read", "report:read"],
+  PARENT: [
+    "child:read",
+    "attendance:read",
+    "exam:read",
+    "homework:read",
+    "finance:read",
+    "communication:read_write",
+  ],
+  STUDENT: ["self:read", "homework:read_write", "exam:read"],
+  TRANSPORT_MANAGER: ["transport:*", "student:read"],
+  BUS_DRIVER: ["transport:read", "bus_attendance:write"],
+  RECEPTIONIST: ["student:read", "attendance:read", "visitor:*"],
 };
 ```
 
@@ -1383,6 +1423,7 @@ const PERMISSIONS = {
 ## Implementation Phases
 
 ### Phase 1 — Foundation (Weeks 1-4)
+
 - [ ] Project scaffolding (monorepo, Docker, CI/CD)
 - [ ] Database schema + Prisma setup + RLS policies
 - [ ] Auth module (JWT, roles, permissions)
@@ -1391,6 +1432,7 @@ const PERMISSIONS = {
 - [ ] Basic React admin shell (layout, routing, auth pages)
 
 ### Phase 2 — Core Academic (Weeks 5-8)
+
 - [ ] Student management (CRUD, bulk import, documents)
 - [ ] Admission workflow
 - [ ] Class/Section management
@@ -1400,6 +1442,7 @@ const PERMISSIONS = {
 - [ ] Timetable management
 
 ### Phase 3 — Attendance & Communication (Weeks 9-11)
+
 - [ ] RFID attendance system + WebSocket real-time feed
 - [ ] Manual attendance entry
 - [ ] Attendance reports
@@ -1408,6 +1451,7 @@ const PERMISSIONS = {
 - [ ] Announcements & messaging
 
 ### Phase 4 — Exams & Finance (Weeks 12-14)
+
 - [ ] Exam management + grading
 - [ ] Report card generation (PDF with Ge'ez font support)
 - [ ] Grade scale configuration
@@ -1417,6 +1461,7 @@ const PERMISSIONS = {
 - [ ] Financial reports
 
 ### Phase 5 — Transport & Mobile (Weeks 15-18)
+
 - [ ] Bus route management
 - [ ] GPS tracking integration
 - [ ] Bus RFID attendance
@@ -1425,6 +1470,7 @@ const PERMISSIONS = {
 - [ ] Flutter app — push notification setup (FCM)
 
 ### Phase 6 — Localization & Polish (Weeks 19-20)
+
 - [ ] Amharic translation (full UI + PDF reports)
 - [ ] Ethiopian calendar integration
 - [ ] Dashboard analytics (charts, stats per role)
@@ -1439,6 +1485,7 @@ const PERMISSIONS = {
 ## Development Conventions
 
 ### Code Style
+
 - **TypeScript strict mode** everywhere
 - **ESLint + Prettier** with Airbnb config
 - **No `any` types** — use proper typing
@@ -1446,6 +1493,7 @@ const PERMISSIONS = {
 - All API inputs validated via Zod before hitting service layer
 
 ### Git Workflow
+
 - `main` — production
 - `staging` — staging environment
 - `develop` — active development
@@ -1454,12 +1502,14 @@ const PERMISSIONS = {
 - PR required with at least 1 review
 
 ### Testing Requirements
+
 - Unit tests for all service layer functions
 - Integration tests for API endpoints (supertest)
 - Minimum 70% code coverage
 - Test database uses separate PostgreSQL schema
 
 ### Naming Conventions
+
 - Files: `kebab-case` (e.g., `student.service.ts`)
 - Classes: `PascalCase`
 - Variables/functions: `camelCase`
@@ -1468,10 +1518,42 @@ const PERMISSIONS = {
 - Constants/enums: `UPPER_SNAKE_CASE`
 
 ### Error Handling
+
 - All errors extend base `AppError` class
 - HTTP errors: `BadRequestError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`
 - Business logic errors: `LicenseExpiredError`, `StudentLimitExceededError`, etc.
 - Global error handler middleware catches all and returns standard error response
+
+### Prisma + RLS Critical Rules (LEARNED THE HARD WAY)
+
+**NEVER use `Promise.all` with Prisma operations in tenant-scoped services.**
+`set_config` is session-scoped but Prisma uses a connection pool. Each operation in `Promise.all` may grab a different pool connection WITHOUT the tenant context, causing silent empty results or data leakage.
+
+```typescript
+// ❌ WRONG — each query may hit a different pool connection
+const [students, count] = await Promise.all([
+  prisma.student.findMany({ where: { tenantId } }),
+  prisma.student.count({ where: { tenantId } }),
+]);
+
+// ✅ CORRECT — $transaction pins all queries to one connection
+const [students, count] = await prisma.$transaction([
+  prisma.student.findMany({ where: { tenantId } }),
+  prisma.student.count({ where: { tenantId } }),
+]);
+```
+
+**EVERY route that queries tenant-scoped tables MUST call setRLSContext — even auth routes.**
+If a route calls `resolveTenant` but NOT `setRLSContext`, Prisma queries run on a connection with no tenant context → RLS returns 0 rows. This includes login, RFID event endpoints, and any custom auth middleware.
+
+**Custom auth middleware (like RFID reader auth) must also set RLS context.**
+The `rfidAuthMiddleware` uses `X-Reader-Secret` instead of JWT, but it still queries tenant-scoped tables. It must resolve the tenant slug to UUID and call `set_config` before any Prisma query.
+
+**The database user MUST NOT be a superuser.**
+PostgreSQL superusers bypass ALL RLS policies regardless of `FORCE ROW LEVEL SECURITY`. The app connects as `schoolsync_app` (non-superuser, NOBYPASSRLS). The `schoolsync` superuser is only for running migrations.
+
+**Sequential operations in seed files.**
+Seed scripts that use `Promise.all` with upserts will fail under RLS because parallel queries grab different pool connections. Always use sequential `for...of` loops in seed files.
 
 ---
 
@@ -1564,6 +1646,7 @@ volumes:
 ```
 
 ### Target Server
+
 - AWS EC2 or similar VPS
 - Minimum: 4 vCPU, 8GB RAM, 100GB SSD
 - PostgreSQL: managed RDS recommended for production, or self-hosted
@@ -1588,12 +1671,18 @@ volumes:
 - [ ] HTTPS enforced everywhere
 - [ ] Environment variables never committed to git
 - [ ] Database backups: daily automated, 30-day retention
+- [ ] Database connection uses non-superuser role (schoolsync_app, NOT schoolsync)
+- [ ] No Promise.all with Prisma operations in tenant-scoped services
+- [ ] Every route that queries tenant data has setRLSContext in middleware chain
+- [ ] RFID reader endpoints use X-Reader-Secret auth + resolve slug to tenant UUID
+- [ ] Seed script uses sequential operations and switches tenant context correctly
 
 ---
 
 ## Notes for Claude Code
 
 ### Architecture Rules
+
 1. **Start with Phase 1** — get the foundation right before building modules.
 2. **RLS is critical** — every migration must include RLS policies for new tables.
 3. **Test tenant isolation** — write tests that verify data doesn't leak between tenants.
@@ -1625,3 +1714,8 @@ volumes:
 23. **Use `taste-skill` dials** — set VISUAL_DENSITY=8 for admin dashboards, VISUAL_DENSITY=4 for parent portal.
 24. **Check shadcn MCP before custom components** — query the shadcn registry to see if a block already exists before building from scratch.
 25. **Use context7 MCP for library questions** — never guess at Prisma, TanStack, or Socket.IO APIs. Let context7 fetch the current docs.
+26. **NEVER use Promise.all with Prisma** — always use prisma.$transaction([...]) for multiple tenant-scoped queries. This is the #1 source of silent bugs in this codebase.
+27. **Every route needs setRLSContext** — if it touches ANY tenant-scoped table, the middleware chain must include setRLSContext. No exceptions, including auth routes and hardware device endpoints.
+28. **Seed files must be sequential** — use for...of loops, not Promise.all, for all Prisma operations in seed.ts. Switch tenant context with setTenantContext() before writing data for a different tenant.
+29. **Test tenant isolation after every new table** — login as Hawassa admin and verify zero records are visible. Don't assume RLS works — verify it.
+30. **Report date ranges capped at 90 days** — the attendance report endpoint rejects ranges over 90 days to prevent full-table scans.

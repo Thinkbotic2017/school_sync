@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
@@ -108,8 +109,8 @@ export function AttendanceReportsPage() {
       attendanceApi.report({
         startDate: startStr,
         endDate: endStr,
-        classId: selectedClassId || undefined,
-        sectionId: selectedSectionId || undefined,
+        classId: selectedClassId && selectedClassId !== 'all' ? selectedClassId : undefined,
+        sectionId: selectedSectionId && selectedSectionId !== 'all' ? selectedSectionId : undefined,
       }),
     enabled: !!startStr && !!endStr,
   });
@@ -219,9 +220,9 @@ export function AttendanceReportsPage() {
       <div className="flex flex-wrap items-end gap-3">
         {/* Start date */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.reports.start_date')}
-          </label>
+          </Label>
           <Popover open={startOpen} onOpenChange={setStartOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="w-40 justify-start gap-2 font-normal">
@@ -233,7 +234,7 @@ export function AttendanceReportsPage() {
               <Calendar
                 mode="single"
                 selected={startDate}
-                onSelect={(d) => {
+                onSelect={(d: Date | undefined) => {
                   setStartDate(d);
                   setStartOpen(false);
                 }}
@@ -245,9 +246,9 @@ export function AttendanceReportsPage() {
 
         {/* End date */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.reports.end_date')}
-          </label>
+          </Label>
           <Popover open={endOpen} onOpenChange={setEndOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="w-40 justify-start gap-2 font-normal">
@@ -259,7 +260,7 @@ export function AttendanceReportsPage() {
               <Calendar
                 mode="single"
                 selected={endDate}
-                onSelect={(d) => {
+                onSelect={(d: Date | undefined) => {
                   setEndDate(d);
                   setEndOpen(false);
                 }}
@@ -271,9 +272,9 @@ export function AttendanceReportsPage() {
 
         {/* Class */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.daily.select_class')}
-          </label>
+          </Label>
           <Select value={selectedClassId} onValueChange={setSelectedClassId}>
             <SelectTrigger className="w-44 h-9">
               <SelectValue placeholder={t('attendance.daily.select_class')} />
@@ -291,9 +292,9 @@ export function AttendanceReportsPage() {
 
         {/* Section */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.daily.select_section')}
-          </label>
+          </Label>
           <Select
             value={selectedSectionId}
             onValueChange={setSelectedSectionId}
@@ -344,7 +345,7 @@ export function AttendanceReportsPage() {
                   domain={[0, 100]}
                   tick={{ fontSize: 11 }}
                   className="fill-muted-foreground"
-                  tickFormatter={(v) => `${v}%`}
+                  tickFormatter={(v: number) => `${v}%`}
                 />
                 <Tooltip
                   formatter={(value: number) => [`${value}%`, t('attendance.reports.attendance_pct')]}

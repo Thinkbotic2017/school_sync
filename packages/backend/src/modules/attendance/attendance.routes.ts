@@ -24,6 +24,7 @@ const router: Router = Router();
 router.post(
   '/rfid-event',
   rfidAuthMiddleware,
+  rfidRlsMiddleware,
   validate(rfidEventSchema, 'body'),
   attendanceController.rfidEvent,
 );
@@ -31,8 +32,16 @@ router.post(
 // ── All other routes: JWT auth + tenant resolution + RLS context ─────────────
 router.use(authenticate, resolveTenant, setRLSContext);
 
-router.get('/today-summary', attendanceController.todaySummary);
-router.get('/recent-checkins', attendanceController.recentCheckIns);
+router.get(
+  '/today-summary',
+  requireRoles(UserRole.SCHOOL_ADMIN, UserRole.PRINCIPAL, UserRole.TEACHER, UserRole.RECEPTIONIST),
+  attendanceController.todaySummary,
+);
+router.get(
+  '/recent-checkins',
+  requireRoles(UserRole.SCHOOL_ADMIN, UserRole.PRINCIPAL, UserRole.TEACHER, UserRole.RECEPTIONIST),
+  attendanceController.recentCheckIns,
+);
 router.get('/report', attendanceController.report);
 router.get('/', validate(attendanceFiltersSchema, 'query'), attendanceController.list);
 
@@ -50,32 +59,71 @@ router.post(
   attendanceController.bulk,
 );
 
+// ── RFID RLS context middleware ───────────────────────────────────────────────
+// Must run after rfidAuthMiddleware (which sets req.auth.tenantId).
+// The RfidEventLog, Student, Attendance tables all have FORCE RLS so we need
+// to set the tenant context before any Prisma queries in processRfidEvent.
+async function rfidRlsMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.auth?.tenantId;
+    if (tenantId) {
+      const { prisma } = await import('../../config/database');
+      await prisma.$executeRawUnsafe(
+        `SELECT set_config('app.current_tenant_id', $1, false)`,
+        tenantId,
+      );
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ── RFID reader authentication middleware ────────────────────────────────────
-function rfidAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const secret = req.headers['x-reader-secret'];
-  const expectedSecret = process.env['RFID_READER_SECRET'];
+// Validates X-Reader-Secret and resolves X-Tenant-ID slug → tenant UUID.
+async function rfidAuthMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const secret = req.headers['x-reader-secret'];
+    const expectedSecret = process.env['RFID_READER_SECRET'];
 
-  if (!expectedSecret || secret !== expectedSecret) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'UNAUTHORIZED', message: 'Invalid reader secret' },
+    if (!expectedSecret || secret !== expectedSecret) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Invalid reader secret' },
+      });
+      return;
+    }
+
+    // For RFID events, tenant is identified via X-Tenant-ID header (slug or UUID)
+    const tenantSlug = req.headers['x-tenant-id'] as string | undefined;
+    if (!tenantSlug) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'BAD_REQUEST', message: 'X-Tenant-ID header required' },
+      });
+      return;
+    }
+
+    // Resolve slug → tenant UUID (same as resolveTenant middleware)
+    const { prisma } = await import('../../config/database');
+    const tenant = await prisma.tenant.findFirst({
+      where: { OR: [{ slug: tenantSlug }, { id: tenantSlug }] },
     });
-    return;
-  }
 
-  // For RFID events, tenant is identified via X-Tenant-ID header
-  const tenantId = req.headers['x-tenant-id'] as string | undefined;
-  if (!tenantId) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'BAD_REQUEST', message: 'X-Tenant-ID header required' },
-    });
-    return;
-  }
+    if (!tenant || !tenant.isActive) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Tenant not found' },
+      });
+      return;
+    }
 
-  // Set req.auth so service layer gets tenantId (userId not applicable for reader agent)
-  req.auth = { tenantId, userId: 'rfid-reader', role: 'RFID_READER' };
-  next();
+    // Set req.auth with resolved UUID (not slug)
+    req.auth = { tenantId: tenant.id, userId: 'rfid-reader', role: 'RFID_READER' };
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 export default router;

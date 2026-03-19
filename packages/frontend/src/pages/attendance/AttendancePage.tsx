@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { CalendarIcon, Save, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
@@ -216,18 +217,7 @@ export function AttendancePage() {
         description={t('attendance.daily.description')}
         actions={
           <div className="flex items-center gap-2">
-            {hasChanges && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleMarkAllPresent}
-                className="gap-1.5"
-              >
-                <CheckSquare className="h-4 w-4" />
-                {t('attendance.daily.mark_all_present')}
-              </Button>
-            )}
-            {!hasChanges && rows.length > 0 && (
+            {rows.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -255,9 +245,9 @@ export function AttendancePage() {
       <div className="flex flex-wrap items-end gap-3">
         {/* Date picker */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.daily.select_date')}
-          </label>
+          </Label>
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="w-40 justify-start gap-2 font-normal">
@@ -269,7 +259,7 @@ export function AttendancePage() {
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={(d) => {
+                onSelect={(d: Date | undefined) => {
                   if (d) {
                     setDate(d);
                     setCalendarOpen(false);
@@ -283,9 +273,9 @@ export function AttendancePage() {
 
         {/* Class */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.daily.select_class')}
-          </label>
+          </Label>
           <Select value={selectedClassId} onValueChange={setSelectedClassId}>
             <SelectTrigger className="w-44 h-9">
               <SelectValue placeholder={t('attendance.daily.select_class')} />
@@ -302,9 +292,9 @@ export function AttendancePage() {
 
         {/* Section */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             {t('attendance.daily.select_section')}
-          </label>
+          </Label>
           <Select
             value={selectedSectionId}
             onValueChange={setSelectedSectionId}

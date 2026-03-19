@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
-import { NotFoundError } from '../../utils/errors';
+import { NotFoundError, BadRequestError } from '../../utils/errors';
 import { getIo } from '../../config/socket';
 import { notificationQueue } from '../../config/queue';
 import type {
@@ -18,7 +18,7 @@ export const attendanceService = {
     const today = new Date(eventTime);
     today.setHours(0, 0, 0, 0);
 
-    // 1. Look up student by RFID card number
+    // 1. Look up student by RFID card number (outside transaction — read-only)
     // NOTE: When RFID encryption is live, decrypt cardNumber before lookup
     const student = await prisma.student.findFirst({
       where: { tenantId, rfidCardNumber: dto.cardNumber },
@@ -28,8 +28,8 @@ export const attendanceService = {
       },
     });
 
-    // Log the raw event regardless of outcome
-    await prisma.rfidEventLog.create({
+    // Log the raw event regardless of outcome (outside transaction — best-effort)
+    const eventLog = await prisma.rfidEventLog.create({
       data: {
         tenantId,
         cardNumber: dto.cardNumber,
@@ -45,84 +45,103 @@ export const attendanceService = {
       return { ignored: true, reason: 'unknown_card' };
     }
 
-    // 2. Debounce check: any processed event for this student in last DEBOUNCE_MINUTES?
-    const debounceWindow = new Date(eventTime.getTime() - DEBOUNCE_MINUTES * 60 * 1000);
-    const recentLog = await prisma.rfidEventLog.findFirst({
-      where: {
-        tenantId,
-        studentId: student.id,
-        timestamp: { gte: debounceWindow, lt: eventTime },
-        processed: true,
-      },
-      orderBy: { timestamp: 'desc' },
-    });
-
-    if (recentLog) {
-      return { ignored: true, reason: 'debounce' };
-    }
-
-    // 3. Get school config for late detection
+    // 2. Get school config for late detection
     const config = await prisma.schoolConfig.findUnique({ where: { tenantId } });
     const startTime = config?.schoolStartTime ?? '08:00';
     const graceMinutes = config?.graceMinutes ?? 15;
 
+    // Use UTC offset for Africa/Addis_Ababa (UTC+3) until date-fns-tz is added (Phase 6)
+    const EAT_OFFSET_MINUTES = 3 * 60;
+    const localMinutes =
+      ((eventTime.getUTCHours() * 60 + eventTime.getUTCMinutes()) + EAT_OFFSET_MINUTES) % (24 * 60);
     const [startHour, startMin] = startTime.split(':').map(Number);
     const cutoffMinutes = (startHour ?? 8) * 60 + (startMin ?? 0) + graceMinutes;
-    const checkInMinutes = eventTime.getHours() * 60 + eventTime.getMinutes();
-    const isLate = checkInMinutes > cutoffMinutes;
+    const isLate = localMinutes > cutoffMinutes;
 
-    // 4. Get or create attendance record for today
-    const existingAttendance = await prisma.attendance.findUnique({
-      where: {
-        tenantId_studentId_date: { tenantId, studentId: student.id, date: today },
-      },
-    });
-
-    let attendance;
-    let action: 'CHECK_IN' | 'CHECK_OUT' | 'IGNORED';
-
-    if (!existingAttendance) {
-      // First tap = CHECK_IN
-      attendance = await prisma.attendance.create({
-        data: {
+    // 3–5. Atomic transaction: debounce check + attendance upsert + log update
+    // Wrapping in a transaction prevents duplicate check-ins from concurrent taps.
+    const result = await prisma.$transaction(async (tx) => {
+      // Debounce: check for a processed event for this student in the last DEBOUNCE_MINUTES
+      const debounceWindow = new Date(eventTime.getTime() - DEBOUNCE_MINUTES * 60 * 1000);
+      const recentLog = await tx.rfidEventLog.findFirst({
+        where: {
           tenantId,
           studentId: student.id,
-          date: today,
-          status: isLate ? 'LATE' : 'PRESENT',
-          checkInTime: eventTime,
-          source: 'RFID',
-          rfidReaderId: dto.readerId,
+          timestamp: { gte: debounceWindow, lt: eventTime },
+          processed: true,
         },
+        orderBy: { timestamp: 'desc' },
       });
-      action = 'CHECK_IN';
-    } else if (existingAttendance.checkInTime && !existingAttendance.checkOutTime) {
-      // Second tap = CHECK_OUT
-      attendance = await prisma.attendance.update({
-        where: { id: existingAttendance.id },
-        data: { checkOutTime: eventTime },
+
+      if (recentLog) {
+        return { debounced: true };
+      }
+
+      // Get or create attendance record for today
+      const existingAttendance = await tx.attendance.findUnique({
+        where: { tenantId_studentId_date: { tenantId, studentId: student.id, date: today } },
       });
-      action = 'CHECK_OUT';
-    } else {
-      // Already has both or no check-in — ignore
-      await prisma.rfidEventLog.updateMany({
-        where: { tenantId, cardNumber: dto.cardNumber, timestamp: eventTime },
-        data: { action: 'IGNORED' },
+
+      let attendance;
+      let action: 'CHECK_IN' | 'CHECK_OUT' | 'IGNORED';
+
+      if (!existingAttendance) {
+        attendance = await tx.attendance.create({
+          data: {
+            tenantId,
+            studentId: student.id,
+            date: today,
+            status: isLate ? 'LATE' : 'PRESENT',
+            checkInTime: eventTime,
+            source: 'RFID',
+            rfidReaderId: dto.readerId,
+          },
+        });
+        action = 'CHECK_IN';
+      } else if (existingAttendance.checkInTime && !existingAttendance.checkOutTime) {
+        attendance = await tx.attendance.update({
+          where: { id: existingAttendance.id },
+          data: { checkOutTime: eventTime },
+        });
+        action = 'CHECK_OUT';
+      } else {
+        // Already complete — mark log as IGNORED using the specific log entry id
+        await tx.rfidEventLog.update({
+          where: { id: eventLog.id },
+          data: { action: 'IGNORED' },
+        });
+        return { debounced: false, ignored: true };
+      }
+
+      // Mark the specific log entry as processed (use id, not updateMany)
+      await tx.rfidEventLog.update({
+        where: { id: eventLog.id },
+        data: { processed: true, action },
       });
+
+      return { debounced: false, ignored: false, action, attendance };
+    });
+
+    if (result.debounced) {
+      return { ignored: true, reason: 'debounce' };
+    }
+    if (result.ignored) {
       return { ignored: true, reason: 'already_complete' };
     }
 
-    // 5. Mark event log as processed
-    await prisma.rfidEventLog.updateMany({
-      where: { tenantId, studentId: student.id, timestamp: eventTime },
-      data: { processed: true, action },
-    });
+    const { action, attendance } = result as {
+      action: 'CHECK_IN' | 'CHECK_OUT';
+      attendance: { status: string; checkInTime: Date | null; checkOutTime: Date | null };
+    };
 
-    // 6. Emit Socket.IO event to the /attendance namespace room for this tenant
+    // 6. Emit Socket.IO event — includes all fields the frontend AttendanceEvent interface requires
     try {
       const io = getIo();
       io.of('/attendance').to(tenantId).emit('attendance:update', {
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
+        admissionNumber: student.admissionNumber,
+        photo: student.photo ?? null,
         className: student.class.name,
         sectionName: student.section.name,
         status: attendance.status,
@@ -206,6 +225,19 @@ export const attendanceService = {
     const date = new Date(dto.date);
     date.setHours(0, 0, 0, 0);
 
+    // P0-3: Validate all studentIds belong to the given class/section
+    const validStudents = await prisma.student.findMany({
+      where: { tenantId, classId: dto.classId, sectionId: dto.sectionId },
+      select: { id: true },
+    });
+    const validIds = new Set(validStudents.map((s) => s.id));
+    const invalidIds = dto.records.filter((r) => !validIds.has(r.studentId)).map((r) => r.studentId);
+    if (invalidIds.length > 0) {
+      throw new BadRequestError(
+        `Student IDs do not belong to the specified class/section: ${invalidIds.join(', ')}`,
+      );
+    }
+
     const results = await prisma.$transaction(
       dto.records.map((record) =>
         prisma.attendance.upsert({
@@ -256,7 +288,8 @@ export const attendanceService = {
       };
     }
 
-    const [records, total] = await Promise.all([
+    // $transaction pins both queries to same connection (preserves RLS context)
+    const [records, total] = await prisma.$transaction([
       prisma.attendance.findMany({
         where,
         include: {
@@ -294,11 +327,19 @@ export const attendanceService = {
       studentId?: string;
     },
   ) {
+    // P1-1: Guard against full-table scans on large date ranges
+    const start = new Date(filters.startDate);
+    const end = new Date(filters.endDate);
+    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays > 90) {
+      throw new BadRequestError('Report date range cannot exceed 90 days');
+    }
+
     const where: Prisma.AttendanceWhereInput = {
       tenantId,
       date: {
-        gte: new Date(filters.startDate),
-        lte: new Date(filters.endDate),
+        gte: start,
+        lte: end,
       },
     };
 
@@ -368,6 +409,7 @@ export const attendanceService = {
       absentDays: s.absent,
       lateDays: s.late,
       excusedDays: s.excused,
+      halfDayDays: s.halfDay,
       attendancePercentage:
         s.total > 0
           ? Math.round(((s.present + s.late + s.halfDay) / s.total) * 100)
@@ -379,8 +421,9 @@ export const attendanceService = {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [totalStudents, presentCount, absentCount, lateCount] = await Promise.all([
-      prisma.student.count({ where: { tenantId, status: { not: 'INACTIVE' } } }),
+    // Use $transaction to pin all queries to one connection (preserves RLS context)
+    const [totalStudents, presentCount, absentCount, lateCount] = await prisma.$transaction([
+      prisma.student.count({ where: { tenantId, status: 'ACTIVE' } }),
       prisma.attendance.count({ where: { tenantId, date: today, status: 'PRESENT' } }),
       prisma.attendance.count({ where: { tenantId, date: today, status: 'ABSENT' } }),
       prisma.attendance.count({ where: { tenantId, date: today, status: 'LATE' } }),

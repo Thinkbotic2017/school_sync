@@ -239,7 +239,9 @@
       "late": "ዘግይተው የቀረቡ",
       "not_marked": "ያልታቀደ",
       "feed_title": "የቅርብ ምዝገባዎች",
-      "no_events": "ዛሬ ምንም ምዝገባ አልተመዘገበም"
+      "no_events": "ዛሬ ምንም ምዝገባ አልተመዘገበም",
+      "checkin_label": "ገቡ",
+      "checkout_label": "ወጡ"
     },
     "daily": {
       "title": "ዕለታዊ ክትትል",

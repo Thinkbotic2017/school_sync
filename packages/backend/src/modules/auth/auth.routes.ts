@@ -3,12 +3,14 @@ import { authController } from './auth.controller';
 import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validator';
 import { resolveTenant } from '../../middleware/tenant';
+import { setRLSContext } from '../../middleware/rls';
 import { loginSchema, refreshTokenSchema, changePasswordSchema } from './auth.validator';
 
 const router: import("express").Router = Router();
 
 // Public routes (tenant resolved from header/subdomain)
-router.post('/login', resolveTenant, validate(loginSchema), authController.login.bind(authController));
+// setRLSContext is required because User table has FORCE ROW LEVEL SECURITY
+router.post('/login', resolveTenant, setRLSContext, validate(loginSchema), authController.login.bind(authController));
 router.post('/refresh', validate(refreshTokenSchema), authController.refresh.bind(authController));
 
 // Authenticated routes

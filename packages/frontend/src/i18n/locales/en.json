@@ -239,7 +239,9 @@
       "late": "Late",
       "not_marked": "Not Marked",
       "feed_title": "Recent Check-ins",
-      "no_events": "No check-ins recorded today"
+      "no_events": "No check-ins recorded today",
+      "checkin_label": "In",
+      "checkout_label": "Out"
     },
     "daily": {
       "title": "Daily Attendance",

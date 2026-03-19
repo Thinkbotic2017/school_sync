@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
@@ -67,6 +67,8 @@ export function LiveMonitorPage() {
   const { events: socketEvents, connected } = useAttendanceSocket();
   const [displayEvents, setDisplayEvents] = useState<DisplayEvent[]>([]);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  // Track how many socket events we've already processed to avoid missing bursts
+  const processedCountRef = useRef(0);
 
   const { data: summaryRes, isLoading: summaryLoading } = useQuery({
     queryKey: ['attendance', 'today-summary'],
@@ -90,10 +92,13 @@ export function LiveMonitorPage() {
     }
   }, [recentRes, initialLoaded]);
 
-  // Prepend new socket events
+  // Prepend all new socket events since last render (handles burst arrivals)
   useEffect(() => {
-    if (socketEvents.length === 0) return;
-    setDisplayEvents((prev) => [fromSocketEvent(socketEvents[0]), ...prev].slice(0, 50));
+    const newCount = socketEvents.length - processedCountRef.current;
+    if (newCount <= 0) return;
+    const newEvents = socketEvents.slice(0, newCount);
+    processedCountRef.current = socketEvents.length;
+    setDisplayEvents((prev) => [...newEvents.map(fromSocketEvent), ...prev].slice(0, 50));
   }, [socketEvents]);
 
   const formatTime = (iso: string | null) => {
@@ -226,9 +231,9 @@ export function LiveMonitorPage() {
                     </span>
                     <p className="text-xs text-muted-foreground">
                       {event.checkInTime
-                        ? `In: ${formatTime(event.checkInTime)}`
+                        ? `${t('attendance.live.checkin_label')}: ${formatTime(event.checkInTime)}`
                         : event.checkOutTime
-                        ? `Out: ${formatTime(event.checkOutTime)}`
+                        ? `${t('attendance.live.checkout_label')}: ${formatTime(event.checkOutTime)}`
                         : '—'}
                     </p>
                   </div>

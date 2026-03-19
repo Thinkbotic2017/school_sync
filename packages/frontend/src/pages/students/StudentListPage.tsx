@@ -12,7 +12,6 @@ import { ConfirmDialog } from '@/components/custom/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
@@ -23,17 +22,6 @@ import {
 } from '@/components/ui/select';
 
 type StudentStatus = Student['status'];
-
-const STATUS_VARIANT: Record<
-  StudentStatus,
-  'success' | 'destructive' | 'info' | 'warning' | 'amber'
-> = {
-  ACTIVE: 'success',
-  INACTIVE: 'destructive',
-  GRADUATED: 'info',
-  TRANSFERRED: 'warning',
-  SUSPENDED: 'amber',
-};
 
 const STATUS_CLASS: Record<StudentStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',

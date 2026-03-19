@@ -8,8 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
 
-import { studentApi, Student } from '@/services/student.service';
-import { academicYearApi, classApi, ApiResponse, PaginatedResponse } from '@/services/academic.service';
+import { studentApi } from '@/services/student.service';
+import { academicYearApi, classApi } from '@/services/academic.service';
 import { apiClient } from '@/services/api';
 import { PageHeader } from '@/components/custom/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -81,15 +81,6 @@ export function StudentFormPage() {
     },
   });
 
-  // Load student for edit
-  const { isLoading: studentLoading } = useQuery({
-    queryKey: ['student', id],
-    queryFn: () => studentApi.getById(id!),
-    enabled: isEdit,
-    select: (res) => res.data.data,
-    gcTime: 0,
-  });
-
   // Load student data into form
   const { data: studentData } = useQuery({
     queryKey: ['student', id],
@@ -123,9 +114,9 @@ export function StudentFormPage() {
   // Academic years
   const { data: academicYearsData } = useQuery({
     queryKey: ['academic-years-list'],
-    queryFn: () => academicYearApi.list({ limit: 50 } as never),
+    queryFn: () => academicYearApi.list({ limit: 50 }),
   });
-  const academicYears = (academicYearsData?.data as ApiResponse<PaginatedResponse<{ id: string; name: string }>>)?.data?.data ?? [];
+  const academicYears = academicYearsData?.data?.data?.data ?? [];
 
   // Classes filtered by academic year
   const { data: classesData } = useQuery({
@@ -133,7 +124,7 @@ export function StudentFormPage() {
     queryFn: () =>
       classApi.list({ academicYearId: selectedAcademicYearId || undefined, limit: 100 }),
   });
-  const classes = (classesData?.data as ApiResponse<PaginatedResponse<{ id: string; name: string }>>)?.data?.data ?? [];
+  const classes = classesData?.data?.data?.data ?? [];
 
   // Sections filtered by class
   const { data: sectionsData } = useQuery({

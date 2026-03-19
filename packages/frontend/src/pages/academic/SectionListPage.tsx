@@ -10,6 +10,7 @@ import {
   classApi,
   type Section,
 } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,7 +46,7 @@ export function SectionListPage() {
     queryKey: ['classes', 'all'],
     queryFn: () => classApi.list({ limit: 200 }),
   });
-  const classes = classesData?.data?.data?.data ?? [];
+  const { data: classes } = unwrapList<{ id: string; name: string }>(classesData);
 
   // ─── Fetch sections ────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
@@ -58,14 +59,14 @@ export function SectionListPage() {
       }),
   });
 
-  const sections: Section[] = data?.data?.data?.data ?? [];
-  const totalPages = data?.data?.data?.meta?.totalPages ?? 1;
+  const { data: sections, meta } = unwrapList<Section>(data);
+  const totalPages = meta.totalPages;
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => sectionApi.delete(id),
     onSuccess: () => {
-      toast.success('Section deleted');
+      toast.success(t('academic.section.deleted'));
       queryClient.invalidateQueries({ queryKey: ['sections'] });
       setDeleteTarget(undefined);
     },
@@ -156,7 +157,7 @@ export function SectionListPage() {
             <SelectValue placeholder={t('academic.section.class')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All Classes</SelectItem>
+            <SelectItem value="__all__">{t('academic.section.all_classes')}</SelectItem>
             {classes.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
@@ -170,7 +171,7 @@ export function SectionListPage() {
         columns={columns}
         data={sections}
         isLoading={isLoading}
-        emptyMessage="No sections found. Add a section to get started."
+        emptyMessage={t('academic.section.empty_message')}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -189,7 +190,7 @@ export function SectionListPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(undefined)}
-        title={t('common.actions.delete') + ' Section'}
+        title={t('academic.section.delete_title')}
         description={t('academic.section.delete_confirm')}
         onConfirm={() =>
           deleteTarget && deleteMutation.mutate(deleteTarget.id)

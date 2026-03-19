@@ -11,6 +11,9 @@ import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { connectRedis, redis } from './config/redis';
 import { errorHandler } from './middleware/errorHandler';
+import { authenticate } from './middleware/auth';
+import { resolveTenant } from './middleware/tenant';
+import { setRLSContext } from './middleware/rls';
 import { authRouter } from './modules/auth/auth.routes';
 import { studentRouter } from './modules/student/student.routes';
 import { academicYearRouter } from './modules/academic-year/academic-year.routes';
@@ -20,8 +23,10 @@ import { subjectRouter } from './modules/subject/subject.routes';
 import { classSubjectRouter } from './modules/class-subject/class-subject.routes';
 import { logger } from './utils/logger';
 
-// Ensure uploads directory exists
-mkdirSync('uploads', { recursive: true });
+// Ensure upload subdirectories exist (multer does not auto-create nested dirs)
+mkdirSync('uploads/photos', { recursive: true });
+mkdirSync('uploads/documents', { recursive: true });
+mkdirSync('uploads/imports', { recursive: true });
 
 const app = express();
 const httpServer = createServer(app);
@@ -50,13 +55,22 @@ app.get('/health', (_req, res) => {
 
 // API Routes
 const apiBase = `/v${env.API_VERSION.replace('v', '')}`;
+
+// Auth routes — no tenant middleware required (login/refresh have no token yet)
 app.use(`${apiBase}/auth`, authRouter);
-app.use(`${apiBase}/students`, studentRouter);
-app.use(`${apiBase}/academic-years`, academicYearRouter);
-app.use(`${apiBase}/classes`, classRouter);
-app.use(`${apiBase}/sections`, sectionRouter);
-app.use(`${apiBase}/subjects`, subjectRouter);
-app.use(`${apiBase}/class-subjects`, classSubjectRouter);
+
+// All other routes: authenticate → resolveTenant → setRLSContext
+// These three middleware must run in this exact order on every protected route.
+// authenticate: verifies JWT, sets req.auth
+// resolveTenant: looks up tenant by header/subdomain, validates license, sets req.tenant
+// setRLSContext: calls set_config('app.current_tenant_id', ...) so PostgreSQL RLS filters by tenant
+const tenantMiddleware = [authenticate, resolveTenant, setRLSContext];
+app.use(`${apiBase}/students`, ...tenantMiddleware, studentRouter);
+app.use(`${apiBase}/academic-years`, ...tenantMiddleware, academicYearRouter);
+app.use(`${apiBase}/classes`, ...tenantMiddleware, classRouter);
+app.use(`${apiBase}/sections`, ...tenantMiddleware, sectionRouter);
+app.use(`${apiBase}/subjects`, ...tenantMiddleware, subjectRouter);
+app.use(`${apiBase}/class-subjects`, ...tenantMiddleware, classSubjectRouter);
 
 // 404 handler
 app.use((_req, res) => {

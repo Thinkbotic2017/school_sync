@@ -34,6 +34,12 @@ export const studentFiltersSchema = z.object({
   status: z
     .enum(['ACTIVE', 'INACTIVE', 'GRADUATED', 'TRANSFERRED', 'SUSPENDED'])
     .optional(),
+  // includeInactive=true surfaces soft-deleted students (SCHOOL_ADMIN only — enforce in controller/RBAC)
+  includeInactive: z
+    .string()
+    .transform((val) => val === 'true')
+    .pipe(z.boolean())
+    .optional(),
 });
 
 export const assignParentSchema = z.object({

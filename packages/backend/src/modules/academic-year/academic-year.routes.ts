@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { academicYearController } from './academic-year.controller';
-import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validator';
 import {
   createAcademicYearSchema,
@@ -10,7 +9,7 @@ import {
 
 const router: import("express").Router = Router();
 
-router.use(authenticate);
+// Authentication and tenant context are applied globally in index.ts.
 
 router.get('/', validate(paginationSchema, 'query'), academicYearController.list.bind(academicYearController));
 router.get('/:id', academicYearController.getById.bind(academicYearController));

@@ -12,6 +12,7 @@ import {
   academicYearApi,
   type Subject,
 } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import {
   Dialog,
   DialogContent,
@@ -71,7 +72,7 @@ export function SubjectFormDialog({
     queryKey: ['academic-years', 'all'],
     queryFn: () => academicYearApi.list({ limit: 100 }),
   });
-  const academicYears = yearsData?.data?.data?.data ?? [];
+  const { data: academicYears } = unwrapList<{ id: string; name: string }>(yearsData);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -115,11 +116,7 @@ export function SubjectFormDialog({
         : subjectApi.create(payload);
     },
     onSuccess: () => {
-      toast.success(
-        existing
-          ? t('academic.subject.edit') + ' saved'
-          : t('academic.subject.add') + ' successful',
-      );
+      toast.success(t('academic.subject.saved'));
       queryClient.invalidateQueries({ queryKey: ['subjects'] });
       onOpenChange(false);
     },
@@ -150,7 +147,7 @@ export function SubjectFormDialog({
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select academic year" />
+                        <SelectValue placeholder={t('academic.subject.select_academic_year')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -189,7 +186,7 @@ export function SubjectFormDialog({
                 <FormItem>
                   <FormLabel>
                     {t('academic.subject.name_amharic')}{' '}
-                    <span className="text-muted-foreground text-xs">(optional)</span>
+                    <span className="text-muted-foreground text-xs">({t('academic.subject.optional')})</span>
                   </FormLabel>
                   <FormControl>
                     <Input

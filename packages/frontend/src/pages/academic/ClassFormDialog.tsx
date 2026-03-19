@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 import { classApi, academicYearApi, type Class } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import {
   Dialog,
   DialogContent,
@@ -66,7 +67,7 @@ export function ClassFormDialog({
     queryFn: () => academicYearApi.list({ limit: 100 }),
   });
 
-  const academicYears = academicYearsData?.data?.data?.data ?? [];
+  const { data: academicYears } = unwrapList<{ id: string; name: string }>(academicYearsData);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -95,9 +96,7 @@ export function ClassFormDialog({
         ? classApi.update(existing.id, values)
         : classApi.create(values),
     onSuccess: () => {
-      toast.success(
-        existing ? t('academic.class.edit') + ' saved' : t('academic.class.add') + ' successful',
-      );
+      toast.success(t('academic.class.saved'));
       queryClient.invalidateQueries({ queryKey: ['classes'] });
       onOpenChange(false);
     },
@@ -128,7 +127,7 @@ export function ClassFormDialog({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select academic year" />
+                        <SelectValue placeholder={t('academic.class.select_academic_year')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

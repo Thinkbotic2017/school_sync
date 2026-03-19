@@ -11,9 +11,11 @@ import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
 import { studentApi } from '@/services/student.service';
 import { academicYearApi, classApi } from '@/services/academic.service';
 import { apiClient } from '@/services/api';
+import { unwrapList } from '@/lib/api-helpers';
 import { PageHeader } from '@/components/custom/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
@@ -116,7 +118,7 @@ export function StudentFormPage() {
     queryKey: ['academic-years-list'],
     queryFn: () => academicYearApi.list({ limit: 50 }),
   });
-  const academicYears = academicYearsData?.data?.data?.data ?? [];
+  const { data: academicYears } = unwrapList<{ id: string; name: string }>(academicYearsData);
 
   // Classes filtered by academic year
   const { data: classesData } = useQuery({
@@ -124,7 +126,7 @@ export function StudentFormPage() {
     queryFn: () =>
       classApi.list({ academicYearId: selectedAcademicYearId || undefined, limit: 100 }),
   });
-  const classes = classesData?.data?.data?.data ?? [];
+  const { data: classes } = unwrapList<{ id: string; name: string }>(classesData);
 
   // Sections filtered by class
   const { data: sectionsData } = useQuery({
@@ -132,8 +134,7 @@ export function StudentFormPage() {
     queryFn: () => apiClient.get('/sections', { params: { classId: selectedClassId, limit: 100 } }),
     enabled: !!selectedClassId,
   });
-  const sections: Array<{ id: string; name: string }> =
-    sectionsData?.data?.data?.data ?? [];
+  const { data: sections } = unwrapList<{ id: string; name: string }>(sectionsData);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -312,9 +313,9 @@ export function StudentFormPage() {
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Academic Year (used for filtering classes, not saved to form) */}
               <div className="space-y-2">
-                <label className="text-sm font-medium leading-none">
+                <Label className="text-sm font-medium leading-none">
                   {t('students.academic_year')}
-                </label>
+                </Label>
                 <Select
                   value={selectedAcademicYearId}
                   onValueChange={(val) => {

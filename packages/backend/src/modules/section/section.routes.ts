@@ -1,12 +1,11 @@
 import { Router } from 'express';
 import { sectionController } from './section.controller';
-import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validator';
 import { createSectionSchema, updateSectionSchema, sectionFiltersSchema } from './section.validator';
 
 const router: import("express").Router = Router();
 
-router.use(authenticate);
+// Authentication and tenant context are applied globally in index.ts.
 
 router.get('/', validate(sectionFiltersSchema, 'query'), sectionController.list.bind(sectionController));
 router.get('/:id', sectionController.getById.bind(sectionController));

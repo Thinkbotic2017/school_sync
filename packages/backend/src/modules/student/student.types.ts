@@ -22,6 +22,8 @@ export interface StudentFilters {
   classId?: string;
   sectionId?: string;
   status?: string;
+  /** When true, includes soft-deleted (INACTIVE) students in the list response. */
+  includeInactive?: boolean;
 }
 
 export interface AssignParentDto {

@@ -7,6 +7,7 @@ import { PlusCircle, Upload, Pencil, Trash2 } from 'lucide-react';
 
 import { studentApi, Student } from '@/services/student.service';
 import { apiClient } from '@/services/api';
+import { unwrapList } from '@/lib/api-helpers';
 import { PageHeader } from '@/components/custom/PageHeader';
 import { ConfirmDialog } from '@/components/custom/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
@@ -82,9 +83,8 @@ export function StudentListPage() {
       }),
   });
 
-  const students: Student[] = data?.data?.data?.data ?? [];
-  const meta = data?.data?.data?.meta;
-  const totalPages = meta?.totalPages ?? 1;
+  const { data: students, meta } = unwrapList<Student>(data);
+  const totalPages = meta.totalPages;
 
   // Delete mutation
   const deleteMutation = useMutation({

@@ -98,7 +98,7 @@ export function BulkImportPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-3">
-              Download the CSV template and fill in student data. Keep the headers exactly as-is.
+              {t('bulk_import.template_description')}
             </p>
             <Button variant="outline" onClick={handleDownloadTemplate}>
               <Download className="h-4 w-4 mr-2" />
@@ -190,14 +190,14 @@ export function BulkImportPage() {
             {result.errors.length > 0 && (
               <CardContent>
                 <p className="text-sm font-medium text-destructive mb-3">
-                  {result.errors.length} error(s):
+                  {t('students.import_errors_count', { count: result.errors.length })}
                 </p>
                 <div className="rounded-md border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40">
                       <tr>
-                        <th className="text-left px-4 py-2 font-medium">Row</th>
-                        <th className="text-left px-4 py-2 font-medium">Error</th>
+                        <th className="text-left px-4 py-2 font-medium">{t('students.import_row')}</th>
+                        <th className="text-left px-4 py-2 font-medium">{t('students.import_error')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">

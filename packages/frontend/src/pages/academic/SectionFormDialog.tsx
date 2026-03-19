@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 import { sectionApi, classApi, type Section } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import {
   Dialog,
   DialogContent,
@@ -67,7 +68,7 @@ export function SectionFormDialog({
     queryKey: ['classes', 'all'],
     queryFn: () => classApi.list({ limit: 200 }),
   });
-  const classes = classesData?.data?.data?.data ?? [];
+  const { data: classes } = unwrapList<{ id: string; name: string }>(classesData);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -100,11 +101,7 @@ export function SectionFormDialog({
         ? sectionApi.update(existing.id, values)
         : sectionApi.create(values),
     onSuccess: () => {
-      toast.success(
-        existing
-          ? t('academic.section.edit') + ' saved'
-          : t('academic.section.add') + ' successful',
-      );
+      toast.success(t('academic.section.saved'));
       queryClient.invalidateQueries({ queryKey: ['sections'] });
       onOpenChange(false);
     },
@@ -132,7 +129,7 @@ export function SectionFormDialog({
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select class" />
+                        <SelectValue placeholder={t('academic.section.select_class')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

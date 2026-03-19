@@ -10,6 +10,7 @@ import {
   academicYearApi,
   type Class,
 } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,7 +46,7 @@ export function ClassListPage() {
     queryKey: ['academic-years', 'all'],
     queryFn: () => academicYearApi.list({ limit: 100 }),
   });
-  const academicYears = yearsData?.data?.data?.data ?? [];
+  const { data: academicYears } = unwrapList<{ id: string; name: string }>(yearsData);
 
   // ─── Fetch classes ────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
@@ -58,14 +59,14 @@ export function ClassListPage() {
       }),
   });
 
-  const classes: Class[] = data?.data?.data?.data ?? [];
-  const totalPages = data?.data?.data?.meta?.totalPages ?? 1;
+  const { data: classes, meta } = unwrapList<Class>(data);
+  const totalPages = meta.totalPages;
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => classApi.delete(id),
     onSuccess: () => {
-      toast.success('Class deleted');
+      toast.success(t('academic.class.deleted'));
       queryClient.invalidateQueries({ queryKey: ['classes'] });
       setDeleteTarget(undefined);
     },
@@ -162,7 +163,7 @@ export function ClassListPage() {
             <SelectValue placeholder={t('academic.class.academic_year')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All Academic Years</SelectItem>
+            <SelectItem value="__all__">{t('academic.class.all_academic_years')}</SelectItem>
             {academicYears.map((y) => (
               <SelectItem key={y.id} value={y.id}>
                 {y.name}
@@ -176,7 +177,7 @@ export function ClassListPage() {
         columns={columns}
         data={classes}
         isLoading={isLoading}
-        emptyMessage="No classes found. Add a class to get started."
+        emptyMessage={t('academic.class.empty_message')}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -194,7 +195,7 @@ export function ClassListPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(undefined)}
-        title={t('common.actions.delete') + ' Class'}
+        title={t('academic.class.delete_title')}
         description={t('academic.class.delete_confirm')}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         isLoading={deleteMutation.isPending}

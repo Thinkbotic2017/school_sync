@@ -10,6 +10,7 @@ import {
   academicYearApi,
   type Subject,
 } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,7 @@ export function SubjectListPage() {
     queryKey: ['academic-years', 'all'],
     queryFn: () => academicYearApi.list({ limit: 100 }),
   });
-  const academicYears = yearsData?.data?.data?.data ?? [];
+  const { data: academicYears } = unwrapList<{ id: string; name: string }>(yearsData);
 
   // ─── Fetch subjects ────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
@@ -69,14 +70,14 @@ export function SubjectListPage() {
       }),
   });
 
-  const subjects: Subject[] = data?.data?.data?.data ?? [];
-  const totalPages = data?.data?.data?.meta?.totalPages ?? 1;
+  const { data: subjects, meta } = unwrapList<Subject>(data);
+  const totalPages = meta.totalPages;
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id: string) => subjectApi.delete(id),
     onSuccess: () => {
-      toast.success('Subject deleted');
+      toast.success(t('academic.subject.deleted'));
       queryClient.invalidateQueries({ queryKey: ['subjects'] });
       setDeleteTarget(undefined);
     },
@@ -186,7 +187,7 @@ export function SubjectListPage() {
             <SelectValue placeholder={t('academic.class.academic_year')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All Academic Years</SelectItem>
+            <SelectItem value="__all__">{t('academic.subject.all_academic_years')}</SelectItem>
             {academicYears.map((y) => (
               <SelectItem key={y.id} value={y.id}>
                 {y.name}
@@ -206,7 +207,7 @@ export function SubjectListPage() {
             <SelectValue placeholder={t('academic.subject.type')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All Types</SelectItem>
+            <SelectItem value="__all__">{t('academic.subject.all_types')}</SelectItem>
             <SelectItem value="CORE">{t('academic.subject.type_core')}</SelectItem>
             <SelectItem value="ELECTIVE">{t('academic.subject.type_elective')}</SelectItem>
             <SelectItem value="EXTRACURRICULAR">
@@ -220,7 +221,7 @@ export function SubjectListPage() {
         columns={columns}
         data={subjects}
         isLoading={isLoading}
-        emptyMessage="No subjects found. Add a subject to get started."
+        emptyMessage={t('academic.subject.empty_message')}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -238,7 +239,7 @@ export function SubjectListPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(undefined)}
-        title={t('common.actions.delete') + ' Subject'}
+        title={t('academic.subject.delete_title')}
         description={t('academic.subject.delete_confirm')}
         onConfirm={() =>
           deleteTarget && deleteMutation.mutate(deleteTarget.id)

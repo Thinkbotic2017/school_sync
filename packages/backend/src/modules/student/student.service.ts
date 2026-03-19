@@ -1,5 +1,11 @@
 import { prisma } from '../../config/database';
 import { NotFoundError, ConflictError, BadRequestError } from '../../utils/errors';
+// TODO(CRIT-003): Import encryptRfid / decryptRfid from '../../utils/crypto' and:
+//   - encrypt rfidCardNumber before write in create(), update(), and bulkCreate()
+//   - decrypt rfidCardNumber after read in getById() and list()
+//   - update checkRfidUniqueness() to compare encrypted values (requires HMAC index or full-table scan)
+//   - run a one-off migration script to encrypt all existing plaintext rfidCardNumber values
+// Until that migration is complete, RFID numbers are stored in plaintext.
 import type {
   CreateStudentDto,
   UpdateStudentDto,
@@ -46,7 +52,14 @@ export const studentService = {
       tenantId,
       ...(filters.classId ? { classId: filters.classId } : {}),
       ...(filters.sectionId ? { sectionId: filters.sectionId } : {}),
-      ...(filters.status ? { status: filters.status as 'ACTIVE' | 'INACTIVE' | 'GRADUATED' | 'TRANSFERRED' | 'SUSPENDED' } : {}),
+      // If a specific status is requested, honour it exactly.
+      // Otherwise, hide INACTIVE students by default (they are soft-deleted).
+      // Pass includeInactive=true to surface them for admin audit purposes.
+      ...(filters.status
+        ? { status: filters.status as 'ACTIVE' | 'INACTIVE' | 'GRADUATED' | 'TRANSFERRED' | 'SUSPENDED' }
+        : filters.includeInactive
+          ? {}
+          : { status: { not: 'INACTIVE' as const } }),
       ...(filters.search
         ? {
             OR: [
@@ -201,7 +214,17 @@ export const studentService = {
       throw new NotFoundError('Student not found');
     }
 
-    await prisma.student.delete({ where: { id } });
+    // Soft delete: set status to INACTIVE rather than removing the row.
+    // This preserves attendance, exam results, and financial records that reference this student.
+    // Design decision: we reuse StudentStatus.INACTIVE for deletion because adding a separate
+    // `deletedAt` column would require a schema migration. Admins can still see soft-deleted
+    // students by explicitly filtering for status=INACTIVE.
+    // TODO: if we need to distinguish "deleted" from "legitimately inactive" in future,
+    //       add a `deletedAt DateTime?` column to the Student model.
+    await prisma.student.update({
+      where: { id },
+      data: { status: 'INACTIVE' },
+    });
   },
 
   async updatePhoto(tenantId: string, id: string, photoPath: string) {

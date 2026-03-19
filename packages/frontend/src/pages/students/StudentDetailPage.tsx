@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -78,7 +79,7 @@ export function StudentDetailPage() {
   const uploadDocMutation = useMutation({
     mutationFn: () => studentApi.uploadDocument(id!, docName, docFile!),
     onSuccess: () => {
-      toast.success(t('students.documents') + ' ' + t('common.actions.save'));
+      toast.success(t('students.saved_document'));
       queryClient.invalidateQueries({ queryKey: ['student-docs', id] });
       setDocDialogOpen(false);
       setDocName('');
@@ -90,7 +91,7 @@ export function StudentDetailPage() {
   const deleteDocMutation = useMutation({
     mutationFn: (docId: string) => studentApi.deleteDocument(id!, docId),
     onSuccess: () => {
-      toast.success(t('common.actions.delete'));
+      toast.success(t('students.deleted_document'));
       queryClient.invalidateQueries({ queryKey: ['student-docs', id] });
       setDeleteDocId(null);
     },
@@ -101,7 +102,7 @@ export function StudentDetailPage() {
     mutationFn: () =>
       studentApi.assignParent(id!, { parentId, relationship, isPrimary }),
     onSuccess: () => {
-      toast.success(t('students.parents') + ' ' + t('common.actions.save'));
+      toast.success(t('students.saved_parent'));
       queryClient.invalidateQueries({ queryKey: ['student', id] });
       setParentDialogOpen(false);
       setParentId('');
@@ -112,7 +113,7 @@ export function StudentDetailPage() {
   const removeParentMutation = useMutation({
     mutationFn: (pId: string) => studentApi.removeParent(id!, pId),
     onSuccess: () => {
-      toast.success(t('common.actions.delete'));
+      toast.success(t('students.deleted_parent'));
       queryClient.invalidateQueries({ queryKey: ['student', id] });
       setDeleteParentId(null);
     },
@@ -219,7 +220,7 @@ export function StudentDetailPage() {
                   </DialogHeader>
                   <div className="space-y-4 py-2">
                     <div className="space-y-2">
-                      <Label>{t('students.admission_number')}</Label>
+                      <Label>{t('students.document_name')}</Label>
                       <Input
                         value={docName}
                         onChange={(e) => setDocName(e.target.value)}
@@ -227,7 +228,7 @@ export function StudentDetailPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>{t('common.actions.import')}</Label>
+                      <Label>{t('students.upload_document')}</Label>
                       <input
                         type="file"
                         ref={docFileRef}
@@ -278,7 +279,7 @@ export function StudentDetailPage() {
                 </div>
               ) : !documents || documents.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  {t('students.no_students')}
+                  {t('students.no_documents')}
                 </p>
               ) : (
                 <div className="divide-y">
@@ -343,11 +344,11 @@ export function StudentDetailPage() {
                   </DialogHeader>
                   <div className="space-y-4 py-2">
                     <div className="space-y-2">
-                      <Label>Parent ID</Label>
+                      <Label>{t('students.parent_id')}</Label>
                       <Input
                         value={parentId}
                         onChange={(e) => setParentId(e.target.value)}
-                        placeholder="Parent user ID"
+                        placeholder={t('students.parent_id_placeholder')}
                       />
                     </div>
                     <div className="space-y-2">
@@ -357,19 +358,17 @@ export function StudentDetailPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="FATHER">Father</SelectItem>
-                          <SelectItem value="MOTHER">Mother</SelectItem>
-                          <SelectItem value="GUARDIAN">Guardian</SelectItem>
+                          <SelectItem value="FATHER">{t('students.relationship_father')}</SelectItem>
+                          <SelectItem value="MOTHER">{t('students.relationship_mother')}</SelectItem>
+                          <SelectItem value="GUARDIAN">{t('students.relationship_guardian')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         id="isPrimary"
                         checked={isPrimary}
-                        onChange={(e) => setIsPrimary(e.target.checked)}
-                        className="h-4 w-4"
+                        onCheckedChange={(checked) => setIsPrimary(!!checked)}
                       />
                       <Label htmlFor="isPrimary">{t('students.is_primary')}</Label>
                     </div>
@@ -397,7 +396,7 @@ export function StudentDetailPage() {
             <CardContent>
               {!student.parentLinks || student.parentLinks.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  {t('students.no_students')}
+                  {t('students.no_parents')}
                 </p>
               ) : (
                 <div className="divide-y">

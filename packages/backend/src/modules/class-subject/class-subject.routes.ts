@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { classSubjectController } from './class-subject.controller';
-import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validator';
 import {
   assignSubjectSchema,
@@ -10,7 +9,7 @@ import {
 
 const router: import("express").Router = Router();
 
-router.use(authenticate);
+// Authentication and tenant context are applied globally in index.ts.
 
 router.get(
   '/',

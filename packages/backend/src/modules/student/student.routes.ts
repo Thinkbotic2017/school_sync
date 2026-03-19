@@ -1,7 +1,6 @@
 // Requires: pnpm add multer @types/multer
 import { Router } from 'express';
 import multer from 'multer';
-import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validator';
 import { studentController } from './student.controller';
 import {
@@ -13,15 +12,61 @@ import {
 
 const router: import("express").Router = Router();
 
-const upload = multer({ dest: 'uploads/' });
+// Authentication and tenant context are applied globally in index.ts
+// before this router is mounted — no need to re-apply here.
 
-// All routes require authentication
-router.use(authenticate);
+// --- Configured multer instances (CRIT-004) ---
+
+const photoUpload = multer({
+  dest: 'uploads/photos/',
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, and WebP images are allowed for photos'));
+    }
+  },
+});
+
+const documentUpload = multer({
+  dest: 'uploads/documents/',
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images, PDFs, and Word documents are allowed'));
+    }
+  },
+});
+
+const csvUpload = multer({
+  dest: 'uploads/imports/',
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['text/csv', 'application/csv', 'text/plain'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed for bulk import'));
+    }
+  },
+});
 
 // IMPORTANT: bulk-import must be registered before /:id to avoid route conflict
 router.post(
   '/bulk-import',
-  upload.single('file'),
+  csvUpload.single('file'),
   studentController.bulkImport.bind(studentController),
 );
 
@@ -51,7 +96,7 @@ router.delete('/:id', studentController.delete.bind(studentController));
 // Photo
 router.post(
   '/:id/photo',
-  upload.single('photo'),
+  photoUpload.single('photo'),
   studentController.uploadPhoto.bind(studentController),
 );
 
@@ -60,7 +105,7 @@ router.get('/:id/documents', studentController.listDocuments.bind(studentControl
 
 router.post(
   '/:id/documents',
-  upload.single('file'),
+  documentUpload.single('file'),
   studentController.uploadDocument.bind(studentController),
 );
 

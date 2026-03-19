@@ -107,11 +107,7 @@ export function AcademicYearFormDialog({
         ? academicYearApi.update(existing.id, values)
         : academicYearApi.create(values),
     onSuccess: () => {
-      toast.success(
-        existing
-          ? t('academic.year.edit') + ' saved'
-          : t('academic.year.add') + ' successful',
-      );
+      toast.success(t('academic.year.saved'));
       queryClient.invalidateQueries({ queryKey: ['academic-years'] });
       onOpenChange(false);
     },

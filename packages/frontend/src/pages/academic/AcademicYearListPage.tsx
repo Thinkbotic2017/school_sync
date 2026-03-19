@@ -6,6 +6,7 @@ import { type ColumnDef } from '@/components/ui/data-table';
 import { MoreHorizontal, Plus, Star } from 'lucide-react';
 
 import { academicYearApi, type AcademicYear } from '@/services/academic.service';
+import { unwrapList } from '@/lib/api-helpers';
 import { DataTable } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,15 +46,15 @@ export function AcademicYearListPage() {
     queryFn: () => academicYearApi.list({ page, limit: 20 }),
   });
 
-  const years: AcademicYear[] = data?.data?.data?.data ?? [];
-  const totalPages = data?.data?.data?.meta?.totalPages ?? 1;
+  const { data: years, meta } = unwrapList<AcademicYear>(data);
+  const totalPages = meta.totalPages;
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => academicYearApi.delete(id),
     onSuccess: () => {
-      toast.success('Academic year deleted');
+      toast.success(t('academic.year.deleted'));
       queryClient.invalidateQueries({ queryKey: ['academic-years'] });
       setDeleteTarget(undefined);
     },
@@ -63,7 +64,7 @@ export function AcademicYearListPage() {
   const setCurrentMutation = useMutation({
     mutationFn: (id: string) => academicYearApi.setCurrent(id),
     onSuccess: () => {
-      toast.success('Current academic year updated');
+      toast.success(t('academic.year.current_updated'));
       queryClient.invalidateQueries({ queryKey: ['academic-years'] });
     },
     onError: () => toast.error(t('common.errors.server_error')),
@@ -102,12 +103,12 @@ export function AcademicYearListPage() {
     },
     {
       accessorKey: 'isCurrent',
-      header: 'Status',
+      header: t('academic.year.status'),
       cell: ({ row }) =>
         row.original.isCurrent ? (
           <Badge variant="success">{t('academic.year.current')}</Badge>
         ) : (
-          <Badge variant="secondary">Archived</Badge>
+          <Badge variant="secondary">{t('academic.year.archived')}</Badge>
         ),
     },
     {
@@ -178,7 +179,7 @@ export function AcademicYearListPage() {
         columns={columns}
         data={years}
         isLoading={isLoading}
-        emptyMessage="No academic years found. Add one to get started."
+        emptyMessage={t('academic.year.empty_message')}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -198,7 +199,7 @@ export function AcademicYearListPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(undefined)}
-        title={t('common.actions.delete') + ' Academic Year'}
+        title={t('academic.year.delete_title')}
         description={t('academic.year.delete_confirm')}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         isLoading={deleteMutation.isPending}

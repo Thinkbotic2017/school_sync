@@ -61,11 +61,64 @@
     "timetable": "የጊዜ ሰሌዳ",
     "homework": "የቤት ሥራ",
     "reports": "ሪፖርቶች",
-    "settings": "ቅንብሮች"
+    "settings": "ቅንብሮች",
+    "academic_years": "የትምህርት ዘመናት",
+    "classes": "ክፍሎች",
+    "sections": "ክፍለ ጊዜዎች",
+    "subjects": "ትምህርቶች"
   },
   "dashboard": {
     "title": "ዳሽቦርድ",
     "welcome": "እንኳን ደህና መጡ፣ {{name}}",
     "overview": "አጠቃላይ እይታ"
+  },
+  "academic": {
+    "year": {
+      "title": "የትምህርት ዘመናት",
+      "add": "የትምህርት ዘመን ጨምር",
+      "edit": "የትምህርት ዘመን አርትዕ",
+      "set_current": "እንደ አሁን ዘመን ተጠቀም",
+      "current": "አሁን ያለ",
+      "name": "የዘመን ስም",
+      "start_date": "መጀመሪያ ቀን",
+      "end_date": "መጨረሻ ቀን",
+      "calendar_type": "የቀን አቆጣጠር",
+      "ethiopian": "የኢትዮጵያ",
+      "gregorian": "ጎርጎሮሳዊ",
+      "is_current": "እንደ አሁን ዘመን ምልክት አድርግ",
+      "delete_confirm": "ይህን የትምህርት ዘመን መሰረዝ ይፈልጋሉ? ይህ ሊቀለበስ አይችልም።"
+    },
+    "class": {
+      "title": "ክፍሎች",
+      "add": "ክፍል ጨምር",
+      "edit": "ክፍል አርትዕ",
+      "name": "የክፍል ስም",
+      "order": "ቅደም ተከተል",
+      "academic_year": "የትምህርት ዘመን",
+      "sections_count": "ክፍለ ጊዜዎች",
+      "delete_confirm": "ይህን ክፍል መሰረዝ ይፈልጋሉ?"
+    },
+    "section": {
+      "title": "ክፍሎች (ዘርፍ)",
+      "add": "ዘርፍ ጨምር",
+      "edit": "ዘርፍ አርትዕ",
+      "name": "የዘርፍ ስም",
+      "class": "ክፍል",
+      "capacity": "አቅም",
+      "delete_confirm": "ይህን ዘርፍ መሰረዝ ይፈልጋሉ?"
+    },
+    "subject": {
+      "title": "ትምህርቶች",
+      "add": "ትምህርት ጨምር",
+      "edit": "ትምህርት አርትዕ",
+      "name": "የትምህርት ስም",
+      "name_amharic": "ስም (አማርኛ)",
+      "code": "የትምህርት ኮድ",
+      "type": "የትምህርት አይነት",
+      "type_core": "ዋና",
+      "type_elective": "ምርጫ",
+      "type_extracurricular": "ተጨማሪ እንቅስቃሴ",
+      "delete_confirm": "ይህን ትምህርት መሰረዝ ይፈልጋሉ?"
+    }
   }
 }

@@ -5,7 +5,7 @@ import { validate } from '../../middleware/validator';
 import { resolveTenant } from '../../middleware/tenant';
 import { loginSchema, refreshTokenSchema, changePasswordSchema } from './auth.validator';
 
-const router = Router();
+const router: import("express").Router = Router();
 
 // Public routes (tenant resolved from header/subdomain)
 router.post('/login', resolveTenant, validate(loginSchema), authController.login.bind(authController));

@@ -5,13 +5,23 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import { createServer } from 'http';
+import { mkdirSync } from 'fs';
 
 import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { connectRedis, redis } from './config/redis';
 import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './modules/auth/auth.routes';
+import { studentRouter } from './modules/student/student.routes';
+import { academicYearRouter } from './modules/academic-year/academic-year.routes';
+import { classRouter } from './modules/class/class.routes';
+import { sectionRouter } from './modules/section/section.routes';
+import { subjectRouter } from './modules/subject/subject.routes';
+import { classSubjectRouter } from './modules/class-subject/class-subject.routes';
 import { logger } from './utils/logger';
+
+// Ensure uploads directory exists
+mkdirSync('uploads', { recursive: true });
 
 const app = express();
 const httpServer = createServer(app);
@@ -41,6 +51,12 @@ app.get('/health', (_req, res) => {
 // API Routes
 const apiBase = `/v${env.API_VERSION.replace('v', '')}`;
 app.use(`${apiBase}/auth`, authRouter);
+app.use(`${apiBase}/students`, studentRouter);
+app.use(`${apiBase}/academic-years`, academicYearRouter);
+app.use(`${apiBase}/classes`, classRouter);
+app.use(`${apiBase}/sections`, sectionRouter);
+app.use(`${apiBase}/subjects`, subjectRouter);
+app.use(`${apiBase}/class-subjects`, classSubjectRouter);
 
 // 404 handler
 app.use((_req, res) => {

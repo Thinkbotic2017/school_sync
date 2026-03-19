@@ -12,24 +12,24 @@ datasource db {
 // ============================================================
 
 model Tenant {
-  id               String               @id @default(uuid())
+  id               String       @id @default(uuid())
   name             String
-  slug             String               @unique
-  customDomain     String?              @unique
+  slug             String       @unique
+  customDomain     String?      @unique
   logo             String?
-  primaryColor     String               @default("#1E40AF")
-  secondaryColor   String               @default("#3B82F6")
-  plan             PlanType             @default(STARTER)
-  licenseKey       String               @unique
+  primaryColor     String       @default("#1E40AF")
+  secondaryColor   String       @default("#3B82F6")
+  plan             PlanType     @default(STARTER)
+  licenseKey       String       @unique
   licenseExpiresAt DateTime
-  maxStudents      Int                  @default(500)
-  maxStaff         Int                  @default(50)
-  isActive         Boolean              @default(true)
-  locale           String               @default("en")
-  calendarType     CalendarType         @default(ETHIOPIAN)
-  timezone         String               @default("Africa/Addis_Ababa")
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  maxStudents      Int          @default(500)
+  maxStaff         Int          @default(50)
+  isActive         Boolean      @default(true)
+  locale           String       @default("en")
+  calendarType     CalendarType @default(ETHIOPIAN)
+  timezone         String       @default("Africa/Addis_Ababa")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   users               User[]
   subscriptionHistory SubscriptionHistory[]
@@ -49,7 +49,7 @@ model SubscriptionHistory {
 }
 
 // ============================================================
-// Tenant-Scoped Tables
+// Tenant-Scoped: Auth
 // ============================================================
 
 model User {
@@ -82,6 +82,153 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// ============================================================
+// Tenant-Scoped: Academic Structure
+// ============================================================
+
+model AcademicYear {
+  id           String       @id @default(uuid())
+  tenantId     String
+  name         String
+  startDate    DateTime
+  endDate      DateTime
+  isCurrent    Boolean      @default(false)
+  calendarType CalendarType
+
+  classes  Class[]
+  subjects Subject[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Class {
+  id             String @id @default(uuid())
+  tenantId       String
+  name           String
+  numericOrder   Int
+  academicYearId String
+
+  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id])
+  sections     Section[]
+  students     Student[]
+  classSubjects ClassSubject[]
+
+  @@unique([tenantId, name, academicYearId])
+  @@index([tenantId])
+}
+
+model Section {
+  id       String @id @default(uuid())
+  tenantId String
+  classId  String
+  name     String
+  capacity Int    @default(40)
+
+  class    Class     @relation(fields: [classId], references: [id])
+  students Student[]
+
+  @@unique([tenantId, classId, name])
+  @@index([tenantId])
+}
+
+model Subject {
+  id             String      @id @default(uuid())
+  tenantId       String
+  academicYearId String
+  name           String
+  nameAmharic    String?
+  code           String
+  type           SubjectType @default(CORE)
+
+  academicYear  AcademicYear  @relation(fields: [academicYearId], references: [id])
+  classSubjects ClassSubject[]
+
+  @@unique([tenantId, code, academicYearId])
+  @@index([tenantId])
+}
+
+model ClassSubject {
+  id             String @id @default(uuid())
+  tenantId       String
+  classId        String
+  subjectId      String
+  teacherId      String?
+  periodsPerWeek Int    @default(5)
+
+  class   Class   @relation(fields: [classId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([tenantId, classId, subjectId])
+  @@index([tenantId])
+}
+
+// ============================================================
+// Tenant-Scoped: Students
+// ============================================================
+
+model Student {
+  id              String        @id @default(uuid())
+  tenantId        String
+  admissionNumber String
+  rfidCardNumber  String?
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          Gender
+  bloodGroup      String?
+  nationality     String        @default("Ethiopian")
+  photo           String?
+  classId         String
+  sectionId       String
+  rollNumber      String?
+  admissionDate   DateTime      @default(now())
+  status          StudentStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  class       Class              @relation(fields: [classId], references: [id])
+  section     Section            @relation(fields: [sectionId], references: [id])
+  parentLinks ParentStudent[]
+  documents   StudentDocument[]
+
+  @@unique([tenantId, admissionNumber])
+  @@index([tenantId])
+  @@index([tenantId, classId])
+  @@index([tenantId, sectionId])
+  @@index([rfidCardNumber])
+}
+
+model ParentStudent {
+  id           String @id @default(uuid())
+  tenantId     String
+  parentId     String
+  studentId    String
+  relationship String
+  isPrimary    Boolean @default(false)
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, parentId, studentId])
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+}
+
+model StudentDocument {
+  id         String   @id @default(uuid())
+  tenantId   String
+  studentId  String
+  name       String
+  filePath   String
+  fileType   String
+  uploadedAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, studentId])
 }
 
 // ============================================================
@@ -118,4 +265,23 @@ enum UserRole {
   TRANSPORT_MANAGER
   BUS_DRIVER
   RECEPTIONIST
+}
+
+enum SubjectType {
+  CORE
+  ELECTIVE
+  EXTRACURRICULAR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  TRANSFERRED
+  SUSPENDED
 }

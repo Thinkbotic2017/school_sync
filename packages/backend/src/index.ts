@@ -24,6 +24,7 @@ import { subjectRouter } from './modules/subject/subject.routes';
 import { classSubjectRouter } from './modules/class-subject/class-subject.routes';
 import { attendanceRouter } from './modules/attendance/attendance.routes';
 import { feeRouter } from './modules/fee/fee.routes';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { logger } from './utils/logger';
 
 // Ensure upload subdirectories exist (multer does not auto-create nested dirs)
@@ -85,6 +86,7 @@ app.use(`${apiBase}/attendance`, attendanceRouter);
 // The feeRouter contains full paths (/fee-structures, /fee-records, /fee-discounts, /fee-reports)
 // so we mount it at the apiBase level.
 app.use(apiBase, ...tenantMiddleware, feeRouter);
+app.use(`${apiBase}/dashboard`, ...tenantMiddleware, dashboardRouter);
 
 // 404 handler
 app.use((_req, res) => {

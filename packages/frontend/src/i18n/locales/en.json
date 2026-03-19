@@ -1,0 +1,71 @@
+{
+  "common": {
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "add": "Add",
+      "search": "Search",
+      "export": "Export",
+      "import": "Import",
+      "confirm": "Confirm",
+      "back": "Back",
+      "next": "Next",
+      "loading": "Loading..."
+    },
+    "errors": {
+      "required": "This field is required",
+      "invalid_email": "Invalid email address",
+      "min_length": "Must be at least {{min}} characters",
+      "server_error": "Something went wrong. Please try again.",
+      "unauthorized": "Your session has expired. Please log in again."
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending": "Pending"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to your school portal",
+      "email_label": "Email address",
+      "email_placeholder": "admin@school.com",
+      "password_label": "Password",
+      "password_placeholder": "••••••••",
+      "submit": "Sign in",
+      "forgot_password": "Forgot password?",
+      "logging_in": "Signing in..."
+    },
+    "logout": "Sign out",
+    "change_password": {
+      "title": "Change password",
+      "current": "Current password",
+      "new": "New password",
+      "submit": "Update password"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "students": "Students",
+    "teachers": "Teachers",
+    "staff": "Staff",
+    "parents": "Parents",
+    "attendance": "Attendance",
+    "exams": "Exams",
+    "finance": "Finance",
+    "transport": "Transport",
+    "communication": "Communication",
+    "timetable": "Timetable",
+    "homework": "Homework",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back, {{name}}",
+    "overview": "Overview"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "common": {
+    "actions": {
+      "save": "አስቀምጥ",
+      "cancel": "ሰርዝ",
+      "delete": "ሰርዝ",
+      "edit": "አርትዕ",
+      "add": "ጨምር",
+      "search": "ፈልግ",
+      "export": "ላክ",
+      "import": "አምጣ",
+      "confirm": "አረጋግጥ",
+      "back": "ተመለስ",
+      "next": "ቀጣይ",
+      "loading": "በመጫን ላይ..."
+    },
+    "errors": {
+      "required": "ይህ መስክ ያስፈልጋል",
+      "invalid_email": "የኢሜይል አድራሻ ትክክል አይደለም",
+      "min_length": "ቢያንስ {{min}} ቁምፊዎች ያስፈልጋሉ",
+      "server_error": "ችግር ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።",
+      "unauthorized": "ክፍለ ጊዜዎ አልቋል። እንደገና ይግቡ።"
+    },
+    "status": {
+      "active": "ንቁ",
+      "inactive": "ንቁ ያልሆነ",
+      "pending": "በመጠባበቅ ላይ"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "እንኳን ደህና መጡ",
+      "subtitle": "ወደ ትምህርት ቤት ፖርታልዎ ይግቡ",
+      "email_label": "የኢሜይል አድራሻ",
+      "email_placeholder": "admin@school.com",
+      "password_label": "የይለፍ ቃል",
+      "password_placeholder": "••••••••",
+      "submit": "ይግቡ",
+      "forgot_password": "የይለፍ ቃልዎን ረሱ?",
+      "logging_in": "በመግባት ላይ..."
+    },
+    "logout": "ውጣ",
+    "change_password": {
+      "title": "የይለፍ ቃል ቀይር",
+      "current": "አሁን ያለ የይለፍ ቃል",
+      "new": "አዲስ የይለፍ ቃል",
+      "submit": "የይለፍ ቃል አዘምን"
+    }
+  },
+  "nav": {
+    "dashboard": "ዳሽቦርድ",
+    "students": "ተማሪዎች",
+    "teachers": "መምህራን",
+    "staff": "ሰራተኞች",
+    "parents": "ወላጆች",
+    "attendance": "ክትትል",
+    "exams": "ፈተናዎች",
+    "finance": "ፋይናንስ",
+    "transport": "ትራንስፖርት",
+    "communication": "ግንኙነት",
+    "timetable": "የጊዜ ሰሌዳ",
+    "homework": "የቤት ሥራ",
+    "reports": "ሪፖርቶች",
+    "settings": "ቅንብሮች"
+  },
+  "dashboard": {
+    "title": "ዳሽቦርድ",
+    "welcome": "እንኳን ደህና መጡ፣ {{name}}",
+    "overview": "አጠቃላይ እይታ"
+  }
+}

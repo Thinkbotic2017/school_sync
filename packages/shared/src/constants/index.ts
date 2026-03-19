@@ -1,0 +1,19 @@
+export const ROLES = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  PARTNER_ADMIN: 'PARTNER_ADMIN',
+  SCHOOL_ADMIN: 'SCHOOL_ADMIN',
+  PRINCIPAL: 'PRINCIPAL',
+  TEACHER: 'TEACHER',
+  ACCOUNTANT: 'ACCOUNTANT',
+  PARENT: 'PARENT',
+  STUDENT: 'STUDENT',
+  TRANSPORT_MANAGER: 'TRANSPORT_MANAGER',
+  BUS_DRIVER: 'BUS_DRIVER',
+  RECEPTIONIST: 'RECEPTIONIST',
+} as const;
+
+export const PLANS = {
+  STARTER: { maxStudents: 500, maxStaff: 50 },
+  PROFESSIONAL: { maxStudents: 2000, maxStaff: 200 },
+  ENTERPRISE: { maxStudents: Infinity, maxStaff: Infinity },
+} as const;

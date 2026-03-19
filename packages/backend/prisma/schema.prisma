@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Platform-Level Tables (No RLS — Super Admin only)
+// ============================================================
+
+model Tenant {
+  id               String               @id @default(uuid())
+  name             String
+  slug             String               @unique
+  customDomain     String?              @unique
+  logo             String?
+  primaryColor     String               @default("#1E40AF")
+  secondaryColor   String               @default("#3B82F6")
+  plan             PlanType             @default(STARTER)
+  licenseKey       String               @unique
+  licenseExpiresAt DateTime
+  maxStudents      Int                  @default(500)
+  maxStaff         Int                  @default(50)
+  isActive         Boolean              @default(true)
+  locale           String               @default("en")
+  calendarType     CalendarType         @default(ETHIOPIAN)
+  timezone         String               @default("Africa/Addis_Ababa")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  users               User[]
+  subscriptionHistory SubscriptionHistory[]
+}
+
+model SubscriptionHistory {
+  id        String             @id @default(uuid())
+  tenantId  String
+  tenant    Tenant             @relation(fields: [tenantId], references: [id])
+  plan      PlanType
+  startDate DateTime
+  endDate   DateTime
+  amount    Decimal
+  currency  String             @default("ETB")
+  status    SubscriptionStatus
+  createdAt DateTime           @default(now())
+}
+
+// ============================================================
+// Tenant-Scoped Tables
+// ============================================================
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  email        String
+  phone        String?
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum PlanType {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  TRIAL
+}
+
+enum CalendarType {
+  ETHIOPIAN
+  GREGORIAN
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PARTNER_ADMIN
+  SCHOOL_ADMIN
+  PRINCIPAL
+  TEACHER
+  ACCOUNTANT
+  PARENT
+  STUDENT
+  TRANSPORT_MANAGER
+  BUS_DRIVER
+  RECEPTIONIST
+}

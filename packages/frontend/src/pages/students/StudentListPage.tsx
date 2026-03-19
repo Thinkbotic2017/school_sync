@@ -100,8 +100,8 @@ export function StudentListPage() {
     },
   });
 
-  const classes: Array<{ id: string; name: string }> = classesData?.data?.data?.data ?? [];
-  const sections: Array<{ id: string; name: string }> = sectionsData?.data?.data?.data ?? [];
+  const classes: Array<{ id: string; name: string }> = classesData?.data?.data ?? [];
+  const sections: Array<{ id: string; name: string }> = sectionsData?.data?.data ?? [];
 
   const columns: ColumnDef<Student>[] = [
     {

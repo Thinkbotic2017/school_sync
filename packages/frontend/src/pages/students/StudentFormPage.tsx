@@ -310,9 +310,11 @@ export function StudentFormPage() {
               <CardTitle className="text-base">{t('students.academic_info')}</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Academic Year (used for filtering classes, not saved) */}
-              <FormItem>
-                <FormLabel>{t('students.academic_year')}</FormLabel>
+              {/* Academic Year (used for filtering classes, not saved to form) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">
+                  {t('students.academic_year')}
+                </label>
                 <Select
                   value={selectedAcademicYearId}
                   onValueChange={(val) => {
@@ -333,7 +335,7 @@ export function StudentFormPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </FormItem>
+              </div>
 
               <FormField
                 control={form.control}

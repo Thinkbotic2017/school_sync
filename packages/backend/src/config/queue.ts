@@ -57,3 +57,71 @@ notificationWorker.on('failed', (job, err) => {
 notificationWorker.on('error', (err) => {
   logger.error(`[NotificationQueue] Worker error: ${err.message}`);
 });
+
+// ── Fee overdue check queue ───────────────────────────────────────────────────
+export const feeQueue = new Queue('fee', {
+  connection: redisConnection,
+  defaultJobOptions: { removeOnComplete: 100, removeOnFail: 50 },
+});
+
+// Schedule daily overdue check at midnight — use void to suppress unhandled promise warning
+void feeQueue.add(
+  'fee:check-overdue',
+  {},
+  {
+    repeat: { pattern: '0 0 * * *' },
+    jobId: 'fee-overdue-check-singleton',
+  },
+).catch((err: Error) => logger.error('Failed to schedule fee overdue job:', err));
+
+// Worker: marks PENDING/PARTIAL fee records as OVERDUE when past due date
+export const feeWorker = new Worker(
+  'fee',
+  async (job) => {
+    if (job.name === 'fee:check-overdue') {
+      const { prisma: prismaClient } = await import('./database');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const tenants = await prismaClient.tenant.findMany({
+        where: { isActive: true },
+        select: { id: true },
+      });
+
+      for (const tenant of tenants) {
+        await prismaClient.$transaction(async (tx) => {
+          // transaction-scoped RLS context (true = resets after transaction)
+          await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
+
+          const overdueRecords = await tx.feeRecord.findMany({
+            where: {
+              tenantId: tenant.id,
+              status: { in: ['PENDING', 'PARTIAL'] },
+              dueDate: { lt: today },
+            },
+            select: { id: true },
+          });
+
+          if (overdueRecords.length > 0) {
+            await tx.feeRecord.updateMany({
+              where: {
+                tenantId: tenant.id,
+                id: { in: overdueRecords.map((r) => r.id) },
+              },
+              data: { status: 'OVERDUE' },
+            });
+
+            logger.info(
+              `[FeeQueue] Marked ${overdueRecords.length} records as OVERDUE for tenant ${tenant.id}`,
+            );
+          }
+        });
+      }
+    }
+  },
+  { connection: redisConnection },
+);
+
+feeWorker.on('failed', (job, err) => {
+  logger.error(`[FeeQueue] Job ${job?.id ?? 'unknown'} failed: ${err.message}`);
+});

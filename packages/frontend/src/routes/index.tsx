@@ -15,6 +15,9 @@ import { BulkImportPage } from '@/pages/students/BulkImportPage';
 import { LiveMonitorPage } from '@/pages/attendance/LiveMonitorPage';
 import { AttendancePage } from '@/pages/attendance/AttendancePage';
 import { AttendanceReportsPage } from '@/pages/attendance/AttendanceReportsPage';
+import { FeeStructuresPage } from '@/pages/finance/FeeStructuresPage';
+import { FeePaymentsPage } from '@/pages/finance/FeePaymentsPage';
+import { FinancialReportsPage } from '@/pages/finance/FinancialReportsPage';
 import { useAuthStore } from '@/store/auth.store';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -60,6 +63,9 @@ const router = createBrowserRouter([
       { path: '/attendance', element: <AttendancePage /> },
       { path: '/attendance/live', element: <LiveMonitorPage /> },
       { path: '/attendance/reports', element: <AttendanceReportsPage /> },
+      { path: '/finance/fee-structures', element: <FeeStructuresPage /> },
+      { path: '/finance/payments', element: <FeePaymentsPage /> },
+      { path: '/finance/reports', element: <FinancialReportsPage /> },
     ],
   },
   { path: '/', element: <Navigate to="/dashboard" replace /> },

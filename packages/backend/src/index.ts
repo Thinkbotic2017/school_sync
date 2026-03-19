@@ -23,6 +23,7 @@ import { sectionRouter } from './modules/section/section.routes';
 import { subjectRouter } from './modules/subject/subject.routes';
 import { classSubjectRouter } from './modules/class-subject/class-subject.routes';
 import { attendanceRouter } from './modules/attendance/attendance.routes';
+import { feeRouter } from './modules/fee/fee.routes';
 import { logger } from './utils/logger';
 
 // Ensure upload subdirectories exist (multer does not auto-create nested dirs)
@@ -79,6 +80,11 @@ app.use(`${apiBase}/class-subjects`, ...tenantMiddleware, classSubjectRouter);
 // - /rfid-event uses X-Reader-Secret header auth (RFID agent process)
 // - all other routes use the standard JWT tenantMiddleware chain
 app.use(`${apiBase}/attendance`, attendanceRouter);
+
+// Fee module — all fee routes use the standard tenant middleware chain.
+// The feeRouter contains full paths (/fee-structures, /fee-records, /fee-discounts, /fee-reports)
+// so we mount it at the apiBase level.
+app.use(apiBase, ...tenantMiddleware, feeRouter);
 
 // 404 handler
 app.use((_req, res) => {

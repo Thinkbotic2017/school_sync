@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { attendanceApi } from '@/services/attendance.service';
+import { feeReportApi } from '@/services/fee.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,6 +33,12 @@ export function DashboardPage() {
     queryKey: ['attendance', 'recent-checkins'],
     queryFn: () => attendanceApi.recentCheckIns(),
   });
+
+  const { data: feeCollectionRes, isLoading: feeLoading } = useQuery({
+    queryKey: ['fee-reports', 'collection-summary'],
+    queryFn: () => feeReportApi.collectionSummary(),
+  });
+  const feeCollectionPct = (feeCollectionRes as any)?.data?.data?.collectionPercentage ?? null;
   const recentCheckIns: Attendance[] = (recentRes as any)?.data?.data ?? [];
 
   const formatTime = (iso: string | null) => {
@@ -95,13 +102,21 @@ export function DashboardPage() {
           <p className="text-xs text-muted-foreground mt-1">{t('dashboard.today')}</p>
         </div>
 
-        {/* Fee Collection — placeholder */}
+        {/* Fee Collection */}
         <div className="rounded-lg border bg-card p-5 shadow-sm">
           <p className="text-sm text-muted-foreground font-medium">
             {t('dashboard.kpi_fee_collection')}
           </p>
-          <p className="text-3xl font-bold mt-2 text-foreground">—</p>
-          <p className="text-xs text-muted-foreground mt-1">{t('dashboard.no_data_yet')}</p>
+          {feeLoading ? (
+            <Skeleton className="h-8 w-20 mt-2" />
+          ) : (
+            <p className="text-3xl font-bold mt-2 text-foreground">
+              {feeCollectionPct !== null
+                ? `${(feeCollectionPct as number).toFixed(1)}%`
+                : '—'}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">{t('dashboard.all_time')}</p>
         </div>
       </div>
 

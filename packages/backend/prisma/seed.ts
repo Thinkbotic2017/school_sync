@@ -8,6 +8,7 @@ import {
   StudentStatus,
   AttendanceStatus,
   AttendanceSource,
+  FeeFrequency,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
@@ -943,6 +944,190 @@ async function main() {
 
   console.log(`   ✅ ${attendanceResult.count} attendance records created (${weekdays.length} days × ${students.length} students)`);
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 4 — Fee Seed Data
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Ensure tenant context is set for Addis (already set from attendance seeding above)
+  await setTenantContext(addis.id);
+
+  console.log('\n💰 Creating fee structures...');
+
+  // 1. Tuition Fee — 5000 ETB, MONTHLY, all classes
+  const existingTuition = await prisma.feeStructure.findFirst({
+    where: { tenantId: addis.id, name: 'Tuition Fee', academicYearId: academicYear.id },
+  });
+  const tuitionFee = existingTuition ?? await prisma.feeStructure.create({
+    data: {
+      tenantId: addis.id,
+      name: 'Tuition Fee',
+      amount: 5000,
+      currency: 'ETB',
+      frequency: FeeFrequency.MONTHLY,
+      classId: null,
+      academicYearId: academicYear.id,
+      isActive: true,
+    },
+  });
+
+  // 2. Transport Fee — 1500 ETB, MONTHLY, all classes
+  const existingTransport = await prisma.feeStructure.findFirst({
+    where: { tenantId: addis.id, name: 'Transport Fee', academicYearId: academicYear.id },
+  });
+  const transportFee = existingTransport ?? await prisma.feeStructure.create({
+    data: {
+      tenantId: addis.id,
+      name: 'Transport Fee',
+      amount: 1500,
+      currency: 'ETB',
+      frequency: FeeFrequency.MONTHLY,
+      classId: null,
+      academicYearId: academicYear.id,
+      isActive: true,
+    },
+  });
+
+  // 3. Lab Fee — 2000 ETB, SEMESTER, Grade 3 only
+  const existingLab = await prisma.feeStructure.findFirst({
+    where: { tenantId: addis.id, name: 'Lab Fee', academicYearId: academicYear.id },
+  });
+  const labFee = existingLab ?? await prisma.feeStructure.create({
+    data: {
+      tenantId: addis.id,
+      name: 'Lab Fee',
+      amount: 2000,
+      currency: 'ETB',
+      frequency: FeeFrequency.SEMESTER,
+      classId: grade3.id,
+      academicYearId: academicYear.id,
+      isActive: true,
+    },
+  });
+
+  console.log('   ✅ Tuition Fee (5000 ETB, MONTHLY, all classes)');
+  console.log('   ✅ Transport Fee (1500 ETB, MONTHLY, all classes)');
+  console.log('   ✅ Lab Fee (2000 ETB, SEMESTER, Grade 3)');
+
+  // Calculate due dates
+  const nowDate = new Date();
+  const tuitionDueDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1);
+  const transportDueDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1);
+  const semesterDueDate =
+    nowDate.getMonth() < 6
+      ? new Date(nowDate.getFullYear(), 0, 1)
+      : new Date(nowDate.getFullYear(), 6, 1);
+  const overdueDate = new Date(nowDate);
+  overdueDate.setDate(overdueDate.getDate() - 30);
+
+  console.log('\n📝 Creating fee records for 30 students...');
+
+  for (let i = 0; i < students.length; i++) {
+    const student = students[i];
+
+    // ── Tuition Fee Record ──────────────────────────────────────────────────
+    const existingTuitionRecord = await prisma.feeRecord.findFirst({
+      where: { tenantId: addis.id, studentId: student.id, feeStructureId: tuitionFee.id },
+    });
+    if (!existingTuitionRecord) {
+      let tuitionStatus: 'PAID' | 'PARTIAL' | 'PENDING';
+      let tuitionPaidAmount: number;
+      let tuitionPaidDate: Date | null = null;
+      let tuitionInvoice: string | null = null;
+
+      if (i < 20) {
+        tuitionStatus = 'PAID';
+        tuitionPaidAmount = 5000;
+        tuitionPaidDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), (i % 10) + 1);
+        tuitionInvoice = `INV-AIS-${nowDate.getFullYear()}-${String(i + 1).padStart(4, '0')}`;
+      } else if (i < 25) {
+        tuitionStatus = 'PARTIAL';
+        tuitionPaidAmount = 2500;
+      } else {
+        tuitionStatus = 'PENDING';
+        tuitionPaidAmount = 0;
+      }
+
+      await prisma.feeRecord.create({
+        data: {
+          tenantId: addis.id,
+          studentId: student.id,
+          feeStructureId: tuitionFee.id,
+          amount: 5000,
+          dueDate: tuitionDueDate,
+          paidAmount: tuitionPaidAmount,
+          status: tuitionStatus,
+          paidDate: tuitionPaidDate,
+          invoiceNumber: tuitionInvoice,
+          paymentMethod: tuitionStatus !== 'PENDING' ? 'CASH' : null,
+        },
+      });
+    }
+
+    // ── Transport Fee Record ────────────────────────────────────────────────
+    const existingTransportRecord = await prisma.feeRecord.findFirst({
+      where: { tenantId: addis.id, studentId: student.id, feeStructureId: transportFee.id },
+    });
+    if (!existingTransportRecord) {
+      let transportStatus: 'PAID' | 'PENDING' | 'OVERDUE';
+      let transportPaidAmount: number;
+      let transportPaidDate: Date | null = null;
+      let transportDue: Date;
+
+      if (i < 15) {
+        transportStatus = 'PAID';
+        transportPaidAmount = 1500;
+        transportPaidDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), (i % 10) + 1);
+        transportDue = transportDueDate;
+      } else if (i < 25) {
+        transportStatus = 'PENDING';
+        transportPaidAmount = 0;
+        transportDue = transportDueDate;
+      } else {
+        transportStatus = 'OVERDUE';
+        transportPaidAmount = 0;
+        transportDue = overdueDate;
+      }
+
+      await prisma.feeRecord.create({
+        data: {
+          tenantId: addis.id,
+          studentId: student.id,
+          feeStructureId: transportFee.id,
+          amount: 1500,
+          dueDate: transportDue,
+          paidAmount: transportPaidAmount,
+          status: transportStatus,
+          paidDate: transportPaidDate,
+          paymentMethod: transportStatus === 'PAID' ? 'BANK_TRANSFER' : null,
+        },
+      });
+    }
+
+    // ── Lab Fee Record — Grade 3 students only (index 20-29) ────────────────
+    if (i >= 20) {
+      const existingLabRecord = await prisma.feeRecord.findFirst({
+        where: { tenantId: addis.id, studentId: student.id, feeStructureId: labFee.id },
+      });
+      if (!existingLabRecord) {
+        await prisma.feeRecord.create({
+          data: {
+            tenantId: addis.id,
+            studentId: student.id,
+            feeStructureId: labFee.id,
+            amount: 2000,
+            dueDate: semesterDueDate,
+            paidAmount: 0,
+            status: 'PENDING',
+          },
+        });
+      }
+    }
+  }
+
+  console.log('   ✅ Tuition fee records: 20 PAID, 5 PARTIAL, 5 PENDING');
+  console.log('   ✅ Transport fee records: 15 PAID, 10 PENDING, 5 OVERDUE');
+  console.log('   ✅ Lab fee records: 10 PENDING (Grade 3 only)');
+
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log('\n' + '─'.repeat(60));
   console.log('🎉 Seed complete!\n');
@@ -964,6 +1149,8 @@ async function main() {
   console.log(`${'Parents (Addis)'.padEnd(30)} ${'10'.padStart(6)}`);
   console.log(`${'School Configs'.padEnd(30)} ${'2'.padStart(6)}`);
   console.log(`${'Attendance Records (Addis)'.padEnd(30)} ${'~210'.padStart(6)}`);
+  console.log(`${'Fee Structures (Addis)'.padEnd(30)} ${'3'.padStart(6)}`);
+  console.log(`${'Fee Records (Addis)'.padEnd(30)} ${'70'.padStart(6)}`);
   console.log('─'.repeat(60));
 
   console.log('\nLogin credentials:');

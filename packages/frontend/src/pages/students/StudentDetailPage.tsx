@@ -2,10 +2,15 @@ import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { toast } from 'sonner';
 import { ArrowLeft, Pencil, Trash2, FileText, Plus, Loader2, ExternalLink, Upload } from 'lucide-react';
 
 import { studentApi, StudentDocument, ParentLink } from '@/services/student.service';
+import { feeRecordApi, feeReportApi, FeeRecord, FeeStatus, PaymentMethod } from '@/services/fee.service';
+import { formatETB } from '@/utils/currency';
 import { PageHeader } from '@/components/custom/PageHeader';
 import { ConfirmDialog } from '@/components/custom/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -31,6 +36,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from '@/components/ui/form';
+import { DataTable, ColumnDef } from '@/components/ui/data-table';
 
 const STATUS_CLASS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
@@ -61,6 +75,105 @@ export function StudentDetailPage() {
   // Delete state
   const [deleteDocId, setDeleteDocId] = React.useState<string | null>(null);
   const [deleteParentId, setDeleteParentId] = React.useState<string | null>(null);
+
+  // Fee payment state
+  const [paymentRecord, setPaymentRecord] = React.useState<FeeRecord | null>(null);
+
+  const FEE_STATUS_CLASS: Record<FeeStatus, string> = {
+    PAID: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    PARTIAL: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+    PENDING: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    OVERDUE: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+    WAIVED: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  };
+
+  type LedgerRecord = FeeRecord & { balance: number };
+
+  const feeColumns: ColumnDef<LedgerRecord>[] = [
+    {
+      id: 'feeType',
+      header: t('finance.payments.fee_type'),
+      cell: ({ row }) => (
+        <span className="text-sm">{row.original.feeStructure?.name ?? '—'}</span>
+      ),
+    },
+    {
+      id: 'total',
+      header: t('finance.payments.total_amount'),
+      cell: ({ row }) => (
+        <span className="text-sm font-mono">{formatETB(row.original.amount)}</span>
+      ),
+    },
+    {
+      id: 'paid',
+      header: t('finance.payments.paid_amount'),
+      cell: ({ row }) => (
+        <span className="text-sm font-mono">{formatETB(row.original.paidAmount)}</span>
+      ),
+    },
+    {
+      id: 'balance',
+      header: t('finance.payments.balance'),
+      cell: ({ row }) => (
+        <span className="text-sm font-mono font-semibold">{formatETB(row.original.balance)}</span>
+      ),
+    },
+    {
+      id: 'dueDate',
+      header: t('finance.payments.due_date'),
+      cell: ({ row }) => (
+        <span className="text-sm">{new Date(row.original.dueDate).toLocaleDateString()}</span>
+      ),
+    },
+    {
+      id: 'status',
+      header: t('finance.payments.status'),
+      cell: ({ row }) => (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${FEE_STATUS_CLASS[row.original.status]}`}
+        >
+          {t(`finance.status.${row.original.status}`)}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => {
+        const rec = row.original;
+        if (rec.status === 'PAID' || rec.status === 'WAIVED') return null;
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => {
+              setPaymentRecord(rec);
+              paymentForm.reset({
+                amount: rec.balance > 0 ? rec.balance : 0,
+                paymentMethod: 'CASH',
+              });
+            }}
+          >
+            {t('finance.payments.record_payment')}
+          </Button>
+        );
+      },
+    },
+  ];
+
+  const paymentSchema = z.object({
+    amount: z.coerce.number().positive(),
+    paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CHEQUE', 'OTHER']),
+    receiptNumber: z.string().optional(),
+    remarks: z.string().optional(),
+  });
+  type PaymentFormValues = z.infer<typeof paymentSchema>;
+
+  const paymentForm = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: { paymentMethod: 'CASH' },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['student', id],
@@ -116,6 +229,32 @@ export function StudentDetailPage() {
       toast.success(t('students.deleted_parent'));
       queryClient.invalidateQueries({ queryKey: ['student', id] });
       setDeleteParentId(null);
+    },
+    onError: () => toast.error(t('common.errors.server_error')),
+  });
+
+  // Fee queries
+  const { data: ledgerRes, isLoading: ledgerLoading } = useQuery({
+    queryKey: ['fee-reports', 'ledger', id],
+    queryFn: () => feeReportApi.studentLedger(id!),
+    enabled: !!id,
+  });
+  const ledger = (ledgerRes as any)?.data?.data ?? null;
+
+  const payFeeMutation = useMutation({
+    mutationFn: (values: { id: string; amount: number; paymentMethod: PaymentMethod; receiptNumber?: string; remarks?: string }) =>
+      feeRecordApi.pay(values.id, {
+        amount: values.amount,
+        paymentMethod: values.paymentMethod,
+        receiptNumber: values.receiptNumber,
+        remarks: values.remarks,
+      }),
+    onSuccess: (res) => {
+      const invoiceNumber = (res as any)?.data?.data?.invoiceNumber ?? '—';
+      toast.success(t('finance.payments.payment_saved', { invoice: invoiceNumber }));
+      queryClient.invalidateQueries({ queryKey: ['fee-reports', 'ledger', id] });
+      setPaymentRecord(null);
+      paymentForm.reset({ paymentMethod: 'CASH' });
     },
     onError: () => toast.error(t('common.errors.server_error')),
   });
@@ -454,15 +593,133 @@ export function StudentDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Fees Placeholder */}
+        {/* Fees Tab */}
         <TabsContent value="fees">
           <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground text-center py-12">
-                {t('students.fees_placeholder')}
-              </p>
+            <CardHeader>
+              <CardTitle className="text-base">{t('students.fees')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ledgerLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : ledger ? (
+                <div className="space-y-4">
+                  {/* Summary cards */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{t('finance.reports.ledger_total_fees')}</p>
+                      <p className="text-sm font-bold mt-1">{formatETB(ledger.summary.totalFees)}</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{t('finance.reports.ledger_total_paid')}</p>
+                      <p className="text-sm font-bold mt-1 text-green-600 dark:text-green-400">{formatETB(ledger.summary.totalPaid)}</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{t('finance.reports.ledger_outstanding')}</p>
+                      <p className="text-sm font-bold mt-1 text-red-600 dark:text-red-400">{formatETB(ledger.summary.outstanding)}</p>
+                    </div>
+                  </div>
+
+                  {/* Fee records table */}
+                  <DataTable<LedgerRecord>
+                    columns={feeColumns}
+                    data={ledger.records as LedgerRecord[]}
+                    isLoading={false}
+                    emptyMessage={t('finance.reports.ledger_empty')}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {t('finance.reports.ledger_empty')}
+                </p>
+              )}
             </CardContent>
           </Card>
+
+          {/* Payment Dialog */}
+          <Dialog open={!!paymentRecord} onOpenChange={(open) => !open && setPaymentRecord(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>{t('finance.payments.record_payment')}</DialogTitle>
+              </DialogHeader>
+              {paymentRecord && (
+                <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-sm mb-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t('finance.payments.fee_type')}</span>
+                    <span>{paymentRecord.feeStructure?.name ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-muted-foreground">{t('finance.payments.remaining_balance')}</span>
+                    <span>{formatETB((paymentRecord as any).balance ?? (paymentRecord.amount - paymentRecord.paidAmount))}</span>
+                  </div>
+                </div>
+              )}
+              <Form {...paymentForm}>
+                <form
+                  onSubmit={paymentForm.handleSubmit((v) => {
+                    if (!paymentRecord) return;
+                    payFeeMutation.mutate({ id: paymentRecord.id, ...v });
+                  })}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={paymentForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('finance.payments.payment_amount')}</FormLabel>
+                        <FormControl><Input type="number" min="0.01" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={paymentForm.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('finance.payments.payment_method')}</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="CASH">{t('finance.payments.method_cash')}</SelectItem>
+                            <SelectItem value="BANK_TRANSFER">{t('finance.payments.method_bank_transfer')}</SelectItem>
+                            <SelectItem value="MOBILE_MONEY">{t('finance.payments.method_mobile_money')}</SelectItem>
+                            <SelectItem value="CHEQUE">{t('finance.payments.method_cheque')}</SelectItem>
+                            <SelectItem value="OTHER">{t('finance.payments.method_other')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={paymentForm.control}
+                    name="receiptNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('finance.payments.receipt_number')}</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setPaymentRecord(null)}>
+                      {t('common.actions.cancel')}
+                    </Button>
+                    <Button type="submit" disabled={payFeeMutation.isPending}>
+                      {payFeeMutation.isPending ? t('common.actions.loading') : t('common.actions.save')}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

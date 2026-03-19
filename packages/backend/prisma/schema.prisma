@@ -97,8 +97,9 @@ model AcademicYear {
   isCurrent    Boolean      @default(false)
   calendarType CalendarType
 
-  classes  Class[]
-  subjects Subject[]
+  classes       Class[]
+  subjects      Subject[]
+  feeStructures FeeStructure[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -111,10 +112,11 @@ model Class {
   numericOrder   Int
   academicYearId String
 
-  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id])
-  sections     Section[]
-  students     Student[]
+  academicYear  AcademicYear   @relation(fields: [academicYearId], references: [id])
+  sections      Section[]
+  students      Student[]
   classSubjects ClassSubject[]
+  feeStructures FeeStructure[]
 
   @@unique([tenantId, name, academicYearId])
   @@index([tenantId])
@@ -194,6 +196,8 @@ model Student {
   parentLinks ParentStudent[]
   documents   StudentDocument[]
   attendances Attendance[]
+  feeRecords  FeeRecord[]
+  feeDiscounts FeeDiscount[]
 
   @@unique([tenantId, admissionNumber])
   @@index([tenantId])
@@ -284,6 +288,80 @@ model StudentDocument {
 }
 
 // ============================================================
+// Tenant-Scoped: Finance
+// ============================================================
+
+model FeeStructure {
+  id             String       @id @default(uuid())
+  tenantId       String
+  name           String
+  amount         Decimal      @db.Decimal(10, 2)
+  currency       String       @default("ETB")
+  frequency      FeeFrequency
+  classId        String?
+  academicYearId String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  class        Class?       @relation(fields: [classId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  feeRecords   FeeRecord[]
+  discounts    FeeDiscount[]
+
+  @@unique([tenantId, name, academicYearId])
+  @@index([tenantId])
+  @@index([tenantId, academicYearId])
+  @@index([tenantId, classId])
+}
+
+model FeeRecord {
+  id             String    @id @default(uuid())
+  tenantId       String
+  studentId      String
+  feeStructureId String
+  amount         Decimal   @db.Decimal(10, 2)
+  dueDate        DateTime
+  paidAmount     Decimal   @db.Decimal(10, 2) @default(0)
+  paidDate       DateTime?
+  status         FeeStatus @default(PENDING)
+  invoiceNumber  String?
+  paymentMethod  String?
+  receiptNumber  String?
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id])
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id])
+
+  @@unique([tenantId, studentId, feeStructureId])
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
+}
+
+model FeeDiscount {
+  id             String       @id @default(uuid())
+  tenantId       String
+  studentId      String
+  feeStructureId String
+  discountType   DiscountType
+  discountValue  Decimal      @db.Decimal(10, 2)
+  reason         String
+  approvedById   String
+  createdAt      DateTime     @default(now())
+
+  student      Student      @relation(fields: [studentId], references: [id])
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, studentId])
+}
+
+// ============================================================
 // Enums
 // ============================================================
 
@@ -350,4 +428,25 @@ enum AttendanceSource {
   RFID
   MANUAL
   APP
+}
+
+enum FeeFrequency {
+  ONE_TIME
+  MONTHLY
+  QUARTERLY
+  SEMESTER
+  ANNUAL
+}
+
+enum FeeStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
 }

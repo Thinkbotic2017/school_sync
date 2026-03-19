@@ -67,7 +67,15 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { to: '/exams', icon: BookOpen, i18nKey: 'nav.exams' },
-  { to: '/finance', icon: CreditCard, i18nKey: 'nav.finance' },
+  {
+    icon: CreditCard,
+    i18nKey: 'nav.finance',
+    children: [
+      { to: '/finance/fee-structures', i18nKey: 'nav.finance_structures' },
+      { to: '/finance/payments', i18nKey: 'nav.finance_payments' },
+      { to: '/finance/reports', i18nKey: 'nav.finance_reports' },
+    ],
+  },
   { to: '/transport', icon: Bus, i18nKey: 'nav.transport' },
   { to: '/communication', icon: MessageSquare, i18nKey: 'nav.communication' },
   { to: '/timetable', icon: Calendar, i18nKey: 'nav.timetable' },
@@ -84,6 +92,7 @@ export function DashboardLayout() {
   // Track which grouped nav sections are expanded
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'nav.attendance': location.pathname.startsWith('/attendance'),
+    'nav.finance': location.pathname.startsWith('/finance'),
   });
 
   const toggleGroup = (key: string) => {

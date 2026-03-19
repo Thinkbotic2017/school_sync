@@ -41,6 +41,7 @@
 ### Reference Implementation
 
 Clone **satnaing/shadcn-admin** (11,400+ GitHub stars) as the frontend reference. It uses our exact stack (Vite + React + TypeScript + shadcn/ui) with 10+ pre-built admin pages, light/dark mode, global search command palette, and WAI-ARIA accessibility. Use it as the structural template — NOT the design.
+DO NOT run any git commands. I will handle git myself.
 
 ---
 

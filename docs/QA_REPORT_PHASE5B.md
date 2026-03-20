@@ -1,0 +1,255 @@
+# QA_REPORT_PHASE5B.md — TenantConfig System
+
+**QA Engineer:** Phase 5B QA Report
+**Phase:** 5B — TenantConfig System
+**Date:** 2026-03-20
+**Overall Status:** 6 PASS / 5 FAIL / 1 PARTIAL
+
+---
+
+## Test Environment
+
+- Backend: Node.js + Express + Prisma, PostgreSQL 15 with RLS, Redis cache
+- Frontend: React 18 + TanStack Query, `useTenantConfig` hook
+- Test Tenants: `addis-international` (Addis International School), `hawassa-academy` (Hawassa Academy)
+- Seed data: Ethiopia defaults (`packages/backend/src/modules/config/defaults/ethiopia.ts`)
+
+---
+
+## TC-01: GET /v1/config returns all 8 categories
+
+**Method:** GET `/v1/config`
+**Auth:** Valid JWT for `addis-international` SCHOOL_ADMIN
+**Expected:** `{ success: true, data: { general, grading, assessment, promotion, operations, fees, attendance, reportCard } }` — all 8 keys present
+
+**Status: FAIL**
+
+**Finding:** `configService.getAllConfigs` returns `Record<string, AnyConfigValue>` (an object keyed by category). The controller serializes this directly as `data`. This is correct for the backend response shape. However, the shape mismatch with the frontend `configApi.getAll` return type means the full response object is never iterated correctly by the hook (see TC-08).
+
+The raw API response itself should contain 8 keys after seeding. This passes at the HTTP level — all 8 seed categories are present in the database. **The HTTP response is structurally correct** but the response shape (object vs. array) conflicts with frontend contract.
+
+**Resolution needed:** Align the API response shape with the frontend contract (see Code Review item 9).
+
+---
+
+## TC-02: GET /v1/config/grading returns grading scale
+
+**Method:** GET `/v1/config/grading`
+**Auth:** Valid JWT for `addis-international`
+**Expected:**
+```json
+{
+  "success": true,
+  "data": {
+    "scale": [
+      { "letter": "A", "min": 90, "max": 100, "gpa": 4.0, "description": "Excellent" },
+      { "letter": "B", "min": 80, "max": 89, "gpa": 3.0, "description": "Very Good" },
+      { "letter": "C", "min": 60, "max": 79, "gpa": 2.0, "description": "Good" },
+      { "letter": "D", "min": 50, "max": 59, "gpa": 1.0, "description": "Pass" },
+      { "letter": "F", "min": 0,  "max": 49, "gpa": 0.0, "description": "Fail" }
+    ],
+    "passingGrade": "D",
+    "minimumPassPercentage": 50
+  }
+}
+```
+
+**Status: PASS**
+
+`getConfig` checks Redis first, falls back to DB, caches the result at `config:{tenantId}:grading` with 300s TTL. After seeding, the DB row matches `ethiopiaDefaults.grading` exactly. On first request the cache miss is filled; subsequent requests within 5 minutes are served from Redis without a DB query.
+
+---
+
+## TC-03: PUT /v1/config/grading updates scale
+
+**Method:** PUT `/v1/config/grading`
+**Auth:** Valid JWT for `addis-international` SCHOOL_ADMIN
+**Payload:** Modified grading scale (e.g., change passing grade to `C`)
+
+**Status: PASS**
+
+The PUT route correctly:
+1. Checks `requireRoles(UserRole.SCHOOL_ADMIN)` — non-admin roles receive 403.
+2. Validates the request body through `gradingConfigSchema` (Zod) — malformed payloads receive 400 with error details.
+3. Calls `db.tenantConfig.upsert` using the RLS-scoped `req.db` connection.
+4. Calls `redis.del(cacheKey(tenantId, 'grading'))` to invalidate the cache.
+5. Returns the updated config object.
+
+A subsequent `GET /v1/config/grading` within the TTL window fetches from DB (cache miss) and repopulates with the new value. Confirmed via `config.service.ts` logic.
+
+**Edge case:** If the `category` param is not in `CONFIG_CATEGORIES`, `categoryParamSchema` validation returns 400 before the service is reached. Correct.
+
+---
+
+## TC-04: Tenant isolation — different tenants have independent configs
+
+**Status: PARTIAL**
+
+**Observation from migration.sql:** The `tenant_configs` table has `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` applied. The RLS policy filters `"tenantId" = NULLIF(current_setting('app.current_tenant_id', true), '')`.
+
+**Issue:** Only a single combined policy exists (no FOR clause = applies to ALL commands, but only provides USING, not WITH CHECK). For SELECT queries this provides isolation. However, for INSERT and UPDATE operations, the absence of a WITH CHECK clause means PostgreSQL uses the USING expression as the check — this is technically functional in this specific case, but it deviates from the required 4-policy pattern and represents a configuration gap.
+
+As long as `setRLSContext` sets the correct `tenantId` before every query (which it does, per `index.ts` line 91), reads from one tenant will not leak to another. **Logical isolation at runtime is maintained.** However, the policy structure is non-compliant with project rules and the INSERT/UPDATE write protection relies on implicit behavior rather than explicit WITH CHECK.
+
+**Verdict:** Functionally isolated but policy structure is non-compliant. Mark as partial pass pending RLS fix.
+
+---
+
+## TC-05: Redis cache key format
+
+**Status: PASS**
+
+Cache key is generated by:
+```typescript
+function cacheKey(tenantId: string, category: string): string {
+  return `config:${tenantId}:${category}`;
+}
+```
+
+Example for Addis grading config:
+`config:550e8400-e29b-41d4-a716-446655440000:grading`
+
+This matches the expected format `config:{tenantId}:{category}`. All three cache operations (`redis.get`, `redis.setex`, `redis.del`) use this function consistently. Correct.
+
+---
+
+## TC-06: Cache invalidated on PUT
+
+**Status: PASS**
+
+`updateConfig` in `config.service.ts` calls `redis.del(cacheKey(tenantId, category))` after a successful upsert (line 122). The next GET for that category will miss the cache, query the DB, and repopulate.
+
+`initializeDefaults` also calls `redis.del` for each category after upserting (line 162). Correct.
+
+**Gap noted:** `getAllConfigs` does not interact with Redis at all. A PUT that invalidates `config:{id}:grading` does not invalidate any all-categories cache because none exists. If a client calls `GET /v1/config` (all categories) after a PUT, it will always get fresh data from DB — which is correct for correctness but inefficient for performance.
+
+---
+
+## TC-07: Seed — both test tenants get Ethiopia defaults
+
+**File:** `packages/backend/prisma/seed.ts`, lines 1134–1187
+
+**Status: PASS**
+
+Both tenants receive all 8 categories from `ethiopiaDefaults` via sequential `for...of` upserts. Key checks:
+
+- `setTenantContext(addis.id)` called before Addis block (line 1139).
+- `setTenantContext(hawassa.id)` called before Hawassa block (line 1171).
+- No `Promise.all` used anywhere in the config seeding section.
+- `update: {}` on upsert means re-running the seed does not overwrite existing customizations.
+- `updatedBy` is set to the respective admin's user ID.
+
+All 8 categories are seeded for both tenants. Confirmed by reading the seed loop against `configCategories` array (lines 1142–1151) which matches `CONFIG_CATEGORIES` from `config.types.ts`.
+
+---
+
+## TC-08: Frontend hook transforms array to map correctly
+
+**File:** `packages/frontend/src/hooks/useTenantConfig.ts`
+
+**Status: FAIL**
+
+The hook assumes the API returns `TenantConfigEntry[]` (an array). It iterates with:
+```typescript
+for (const entry of entries) {
+  (configs as Record<string, unknown>)[entry.category] = entry.config;
+}
+```
+
+However, `configApi.getAll` calls `GET /v1/config` which currently returns a `Record<string, AnyConfigValue>` object (e.g., `{ grading: {...}, fees: {...} }`). When Axios deserializes this, `data.data` is a plain object, not an array.
+
+`for...of` on a plain object throws `TypeError: entries is not iterable` at runtime (plain objects are not iterable by default). The `configs` map will remain `{}` and all config-dependent UI will fall back to defaults or show unexpected behavior.
+
+**To reproduce:** Log in as any user, open browser console — expect a TypeError in the React Query callback, query enters error state.
+
+---
+
+## TC-09: `currency` shortcut returns ETB from Ethiopia defaults
+
+**Status: FAIL (dependent on TC-08)**
+
+```typescript
+const currency: string =
+  configs.fees?.currency ?? configs.general?.currency ?? 'USD';
+```
+
+Because TC-08 fails and `configs` is always `{}`, `configs.fees` and `configs.general` are both `undefined`. The shortcut falls back to `'USD'` instead of `'ETB'`.
+
+**Expected:** `'ETB'`
+**Actual:** `'USD'`
+
+This will affect every currency display in the frontend (fee records, invoices, financial reports) showing `USD` instead of `ETB` for Ethiopia schools.
+
+---
+
+## TC-10: `calendarType` shortcut returns ETHIOPIAN
+
+**Status: FAIL (dependent on TC-08)**
+
+```typescript
+const calendarType: string =
+  configs.general?.calendarType ?? 'GREGORIAN';
+```
+
+Because `configs.general` is `undefined` (see TC-08), this always returns `'GREGORIAN'` instead of `'ETHIOPIAN'`.
+
+**Expected:** `'ETHIOPIAN'`
+**Actual:** `'GREGORIAN'`
+
+This affects all date rendering in the application — students and admins at Ethiopia schools will see Gregorian dates instead of Ethiopian calendar dates.
+
+---
+
+## TC-11: Unauthenticated access blocked
+
+**Method:** GET `/v1/config` without Authorization header
+**Expected:** 401 Unauthorized
+
+**Status: PASS**
+
+The `authenticate` middleware in the global `tenantMiddleware` chain rejects requests without a valid JWT before they reach `configRouter`. Confirmed by reading `index.ts` line 91 and `src/middleware/auth.ts`.
+
+---
+
+## TC-12: Invalid category param returns 400
+
+**Method:** GET `/v1/config/invalid_category`
+**Expected:** 400 Bad Request
+
+**Status: PASS**
+
+`categoryParamSchema` validates the `:category` param against `CONFIG_CATEGORIES` using `z.enum`. An unrecognized category returns a 400 validation error before the service layer is invoked.
+
+---
+
+## Defect Summary
+
+| ID | Test Case | Status | Severity | Root Cause |
+|---|---|---|---|---|
+| TC-01 | GET /v1/config all 8 categories | FAIL | High | getAllConfigs returns object; frontend expects array |
+| TC-02 | GET /v1/config/grading | PASS | — | — |
+| TC-03 | PUT /v1/config/grading | PASS | — | — |
+| TC-04 | Tenant isolation | PARTIAL | High | Missing WITH CHECK on RLS INSERT/UPDATE policies |
+| TC-05 | Redis cache key format | PASS | — | — |
+| TC-06 | Cache invalidated on PUT | PASS | — | — |
+| TC-07 | Seed: both tenants get Ethiopia defaults | PASS | — | — |
+| TC-08 | Frontend hook array→map transform | FAIL | Critical | API returns object, hook iterates as array — TypeError |
+| TC-09 | currency shortcut returns ETB | FAIL | High | Cascades from TC-08; returns 'USD' |
+| TC-10 | calendarType shortcut returns ETHIOPIAN | FAIL | High | Cascades from TC-08; returns 'GREGORIAN' |
+| TC-11 | Unauthenticated access blocked | PASS | — | — |
+| TC-12 | Invalid category param returns 400 | PASS | — | — |
+
+---
+
+## Blocking Defects (Must fix before Phase 5B ships)
+
+1. **TC-08 / TC-01** — `getAllConfigs` service method and the frontend `configApi.getAll` have incompatible response shapes. Fix by making the backend return `TenantConfigEntry[]` (array) or updating the frontend to consume an object map. This is the root cause of TC-09 and TC-10.
+
+2. **TC-04** — RLS migration missing `WITH CHECK` on INSERT/UPDATE. Replace single combined policy with 4 command-specific policies (see Code Review item 1).
+
+---
+
+## Regression Risk
+
+- Changes to `getAllConfigs` return type will affect any consumer that calls `GET /v1/config`. Confirm the dashboard (Phase 6) does not call this endpoint directly before changing the shape.
+- Changing RLS policies requires a new migration; the existing data is unaffected but the migration must be tested against both `schoolsync_app` (NOBYPASSRLS) and `schoolsync` (superuser for migration only) connections.

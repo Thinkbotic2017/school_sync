@@ -171,9 +171,10 @@ export const feeReportApi = {
   studentLedger: (studentId: string) =>
     apiClient.get<ApiResponse<StudentLedger>>(`/fee-reports/student-ledger/${studentId}`),
 
-  overdueReport: () =>
+  overdueReport: (params?: Record<string, string | undefined>) =>
     apiClient.get<ApiResponse<Array<FeeRecord & { daysOverdue: number; balance: number }>>>(
       '/fee-reports/overdue',
+      { params },
     ),
 
   classSummary: (params?: Record<string, string | undefined>) =>

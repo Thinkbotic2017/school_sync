@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { ethiopiaDefaults } from '../src/modules/config/defaults/ethiopia';
 
 const prisma = new PrismaClient();
 
@@ -60,6 +61,7 @@ async function main() {
       maxStudents: 2000,
       maxStaff: 200,
       isActive: true,
+      setupComplete: false,
       locale: 'en',
       calendarType: CalendarType.ETHIOPIAN,
       timezone: 'Africa/Addis_Ababa',
@@ -108,6 +110,7 @@ async function main() {
       maxStudents: 500,
       maxStaff: 50,
       isActive: true,
+      setupComplete: false,
       locale: 'am',
       calendarType: CalendarType.ETHIOPIAN,
       timezone: 'Africa/Addis_Ababa',
@@ -1128,6 +1131,64 @@ async function main() {
   console.log('   ✅ Transport fee records: 15 PAID, 10 PENDING, 5 OVERDUE');
   console.log('   ✅ Lab fee records: 10 PENDING (Grade 3 only)');
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 5B — TenantConfig seed data
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Seed Ethiopia defaults for Addis International School
+  await setTenantContext(addis.id);
+  console.log('\n⚙️  Seeding tenant configs for Addis International...');
+
+  const configCategories = [
+    'general',
+    'grading',
+    'assessment',
+    'promotion',
+    'operations',
+    'fees',
+    'attendance',
+    'reportCard',
+  ] as const;
+
+  type ConfigCategoryKey = (typeof configCategories)[number];
+
+  for (const category of configCategories) {
+    const defaultValue = ethiopiaDefaults[category as ConfigCategoryKey];
+    await prisma.tenantConfig.upsert({
+      where: { tenantId_category: { tenantId: addis.id, category } },
+      update: {},
+      create: {
+        tenantId: addis.id,
+        category,
+        config: defaultValue as object,
+        updatedBy: addisAdmin.id,
+      },
+    });
+    console.log(`   ✅ ${category}`);
+  }
+
+  // Seed Ethiopia defaults for Hawassa Academy
+  await setTenantContext(hawassa.id);
+  console.log('\n⚙️  Seeding tenant configs for Hawassa Academy...');
+
+  for (const category of configCategories) {
+    const defaultValue = ethiopiaDefaults[category as ConfigCategoryKey];
+    await prisma.tenantConfig.upsert({
+      where: { tenantId_category: { tenantId: hawassa.id, category } },
+      update: {},
+      create: {
+        tenantId: hawassa.id,
+        category,
+        config: defaultValue as object,
+        updatedBy: hawassaAdmin.id,
+      },
+    });
+    console.log(`   ✅ ${category}`);
+  }
+
+  // Restore context to addis for any further operations
+  await setTenantContext(addis.id);
+
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log('\n' + '─'.repeat(60));
   console.log('🎉 Seed complete!\n');
@@ -1151,6 +1212,7 @@ async function main() {
   console.log(`${'Attendance Records (Addis)'.padEnd(30)} ${'~210'.padStart(6)}`);
   console.log(`${'Fee Structures (Addis)'.padEnd(30)} ${'3'.padStart(6)}`);
   console.log(`${'Fee Records (Addis)'.padEnd(30)} ${'70'.padStart(6)}`);
+  console.log(`${'Tenant Configs (per tenant)'.padEnd(30)} ${'8'.padStart(6)}`);
   console.log('─'.repeat(60));
 
   console.log('\nLogin credentials:');

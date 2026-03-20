@@ -25,6 +25,7 @@ model Tenant {
   maxStudents      Int          @default(500)
   maxStaff         Int          @default(50)
   isActive         Boolean      @default(true)
+  setupComplete    Boolean      @default(false)
   locale           String       @default("en")
   calendarType     CalendarType @default(ETHIOPIAN)
   timezone         String       @default("Africa/Addis_Ababa")
@@ -95,6 +96,7 @@ model AcademicYear {
   startDate    DateTime
   endDate      DateTime
   isCurrent    Boolean      @default(false)
+  isActive     Boolean      @default(true)
   calendarType CalendarType
 
   classes       Class[]
@@ -106,11 +108,12 @@ model AcademicYear {
 }
 
 model Class {
-  id             String @id @default(uuid())
+  id             String  @id @default(uuid())
   tenantId       String
   name           String
   numericOrder   Int
   academicYearId String
+  isActive       Boolean @default(true)
 
   academicYear  AcademicYear   @relation(fields: [academicYearId], references: [id])
   sections      Section[]
@@ -123,11 +126,12 @@ model Class {
 }
 
 model Section {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   tenantId String
   classId  String
   name     String
-  capacity Int    @default(40)
+  capacity Int     @default(40)
+  isActive Boolean @default(true)
 
   class    Class     @relation(fields: [classId], references: [id])
   students Student[]
@@ -144,6 +148,7 @@ model Subject {
   nameAmharic    String?
   code           String
   type           SubjectType @default(CORE)
+  isActive       Boolean     @default(true)
 
   academicYear  AcademicYear  @relation(fields: [academicYearId], references: [id])
   classSubjects ClassSubject[]
@@ -359,6 +364,23 @@ model FeeDiscount {
 
   @@index([tenantId])
   @@index([tenantId, studentId])
+}
+
+// ============================================================
+// Tenant-Scoped: Configuration
+// ============================================================
+
+model TenantConfig {
+  id        String   @id @default(uuid())
+  tenantId  String
+  category  String
+  config    Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@unique([tenantId, category])
+  @@index([tenantId])
+  @@map("tenant_configs")
 }
 
 // ============================================================

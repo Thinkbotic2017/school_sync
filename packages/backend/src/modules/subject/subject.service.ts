@@ -1,11 +1,15 @@
-import { SubjectType } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { SubjectType, PrismaClient } from '@prisma/client';
 import { BadRequestError, ConflictError, NotFoundError } from '../../utils/errors';
 import { PAGINATION } from '../../utils/constants';
 import type { CreateSubjectDto, UpdateSubjectDto, SubjectFilters } from './subject.types';
 
+type DbClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
 export class SubjectService {
-  async list(tenantId: string, filters: SubjectFilters) {
+  async list(tenantId: string, filters: SubjectFilters, db: DbClient) {
     const page = filters.page ?? PAGINATION.DEFAULT_PAGE;
     const limit = Math.min(filters.limit ?? PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * limit;
@@ -16,19 +20,20 @@ export class SubjectService {
       ...(filters.type && { type: filters.type as SubjectType }),
     };
 
-    const [data, total] = await Promise.all([
-      prisma.subject.findMany({
-        where,
-        orderBy: { name: 'asc' },
-        skip,
-        take: limit,
-        include: {
-          academicYear: { select: { id: true, name: true } },
-          _count: { select: { classSubjects: true } },
-        },
-      }),
-      prisma.subject.count({ where }),
-    ]);
+    // Sequential queries on the same db client (required by RLS).
+    // NEVER use Promise.all with Prisma — each call would grab a different
+    // pool connection, losing the RLS set_config context.
+    const total = await db.subject.count({ where });
+    const data = await db.subject.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      skip,
+      take: limit,
+      include: {
+        academicYear: { select: { id: true, name: true } },
+        _count: { select: { classSubjects: true } },
+      },
+    });
 
     return {
       data,
@@ -41,8 +46,8 @@ export class SubjectService {
     };
   }
 
-  async getById(tenantId: string, id: string) {
-    const subject = await prisma.subject.findFirst({
+  async getById(tenantId: string, id: string, db: DbClient) {
+    const subject = await db.subject.findFirst({
       where: { id, tenantId },
       include: {
         academicYear: { select: { id: true, name: true } },
@@ -61,16 +66,16 @@ export class SubjectService {
     return subject;
   }
 
-  async create(tenantId: string, dto: CreateSubjectDto) {
+  async create(tenantId: string, dto: CreateSubjectDto, db: DbClient) {
     // Verify academic year belongs to this tenant
-    const academicYear = await prisma.academicYear.findFirst({
+    const academicYear = await db.academicYear.findFirst({
       where: { id: dto.academicYearId, tenantId },
     });
     if (!academicYear) {
       throw new NotFoundError('Academic year not found');
     }
 
-    const existing = await prisma.subject.findFirst({
+    const existing = await db.subject.findFirst({
       where: { tenantId, code: dto.code, academicYearId: dto.academicYearId },
     });
     if (existing) {
@@ -79,7 +84,7 @@ export class SubjectService {
       );
     }
 
-    return prisma.subject.create({
+    return db.subject.create({
       data: {
         tenantId,
         academicYearId: dto.academicYearId,
@@ -94,14 +99,14 @@ export class SubjectService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateSubjectDto) {
-    const existing = await prisma.subject.findFirst({ where: { id, tenantId } });
+  async update(tenantId: string, id: string, dto: UpdateSubjectDto, db: DbClient) {
+    const existing = await db.subject.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Subject not found');
     }
 
     if (dto.academicYearId) {
-      const academicYear = await prisma.academicYear.findFirst({
+      const academicYear = await db.academicYear.findFirst({
         where: { id: dto.academicYearId, tenantId },
       });
       if (!academicYear) {
@@ -114,7 +119,7 @@ export class SubjectService {
       const newCode = (dto.code ?? existing.code).toUpperCase();
       const newAcademicYearId = dto.academicYearId ?? existing.academicYearId;
 
-      const conflict = await prisma.subject.findFirst({
+      const conflict = await db.subject.findFirst({
         where: {
           tenantId,
           code: newCode,
@@ -129,7 +134,7 @@ export class SubjectService {
       }
     }
 
-    return prisma.subject.update({
+    return db.subject.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -144,21 +149,21 @@ export class SubjectService {
     });
   }
 
-  async delete(tenantId: string, id: string) {
-    const existing = await prisma.subject.findFirst({ where: { id, tenantId } });
+  async delete(tenantId: string, id: string, db: DbClient) {
+    const existing = await db.subject.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Subject not found');
     }
 
-    const classSubjectCount = await prisma.classSubject.count({ where: { subjectId: id, tenantId } });
+    const classSubjectCount = await db.classSubject.count({ where: { subjectId: id, tenantId } });
     if (classSubjectCount > 0) {
       throw new BadRequestError(
-        `Cannot delete subject assigned to ${classSubjectCount} class(es). Unassign from all classes first.`,
+        `Cannot deactivate subject assigned to ${classSubjectCount} class(es). Unassign from all classes first.`,
       );
     }
 
-    await prisma.subject.delete({ where: { id } });
-    return { message: 'Subject deleted successfully' };
+    await db.subject.update({ where: { id }, data: { isActive: false } });
+    return { message: 'Subject deactivated successfully' };
   }
 }
 

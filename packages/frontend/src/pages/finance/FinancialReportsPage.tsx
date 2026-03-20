@@ -31,8 +31,17 @@ import {
   StudentLedger,
 } from '@/services/fee.service';
 import { studentApi } from '@/services/student.service';
+import { academicYearApi, classApi, AcademicYear, Class } from '@/services/academic.service';
 import { unwrapList } from '@/lib/api-helpers';
 import { formatETB } from '@/utils/currency';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 // ─── Status badge colors ──────────────────────────────────────────────────────
 
@@ -84,11 +93,37 @@ export function FinancialReportsPage() {
   const [ledgerStudentId, setLedgerStudentId] = React.useState('');
   const [studentSearch, setStudentSearch] = React.useState('');
 
+  // ── Report filters ────────────────────────────────────────────────────────
+  const [academicYearFilter, setAcademicYearFilter] = React.useState('all');
+  const [classFilter, setClassFilter] = React.useState('all');
+
+  // ── Academic years & classes ──────────────────────────────────────────────
+
+  const { data: yearsRes } = useQuery({
+    queryKey: ['academic-years'],
+    queryFn: () => academicYearApi.list({ limit: 50 }),
+  });
+  const { data: years } = unwrapList<AcademicYear>(yearsRes);
+
+  const { data: classesRes } = useQuery({
+    queryKey: ['classes-reports', academicYearFilter],
+    queryFn: () =>
+      classApi.list({
+        academicYearId: academicYearFilter !== 'all' ? academicYearFilter : undefined,
+        limit: 200,
+      }),
+  });
+  const { data: classes } = unwrapList<Class>(classesRes);
+
   // ── Collection Summary ────────────────────────────────────────────────────
 
   const { data: summaryRes, isLoading: summaryLoading } = useQuery({
-    queryKey: ['fee-reports', 'collection-summary'],
-    queryFn: () => feeReportApi.collectionSummary(),
+    queryKey: ['fee-reports', 'collection-summary', academicYearFilter, classFilter],
+    queryFn: () =>
+      feeReportApi.collectionSummary({
+        academicYearId: academicYearFilter !== 'all' ? academicYearFilter : undefined,
+        classId: classFilter !== 'all' ? classFilter : undefined,
+      }),
   });
   const summary: CollectionSummary | null =
     (summaryRes as any)?.data?.data ?? null;
@@ -96,8 +131,11 @@ export function FinancialReportsPage() {
   // ── Class Summary ─────────────────────────────────────────────────────────
 
   const { data: classSummaryRes, isLoading: classLoading } = useQuery({
-    queryKey: ['fee-reports', 'class-summary'],
-    queryFn: () => feeReportApi.classSummary(),
+    queryKey: ['fee-reports', 'class-summary', academicYearFilter],
+    queryFn: () =>
+      feeReportApi.classSummary({
+        academicYearId: academicYearFilter !== 'all' ? academicYearFilter : undefined,
+      }),
   });
   const classSummary: ClassFeeSummary[] =
     (classSummaryRes as any)?.data?.data ?? [];
@@ -105,8 +143,12 @@ export function FinancialReportsPage() {
   // ── Overdue Report ────────────────────────────────────────────────────────
 
   const { data: overdueRes, isLoading: overdueLoading } = useQuery({
-    queryKey: ['fee-reports', 'overdue'],
-    queryFn: () => feeReportApi.overdueReport(),
+    queryKey: ['fee-reports', 'overdue', academicYearFilter, classFilter],
+    queryFn: () =>
+      feeReportApi.overdueReport({
+        academicYearId: academicYearFilter !== 'all' ? academicYearFilter : undefined,
+        classId: classFilter !== 'all' ? classFilter : undefined,
+      }),
   });
   const overdueRecords: Array<FeeRecord & { daysOverdue: number; balance: number }> =
     (overdueRes as any)?.data?.data ?? [];
@@ -337,6 +379,56 @@ export function FinancialReportsPage() {
         title={t('finance.reports.title')}
         description={t('finance.reports.description')}
       />
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">
+            {t('finance.reports.filter_academic_year')}
+          </Label>
+          <Select
+            value={academicYearFilter}
+            onValueChange={(v) => {
+              setAcademicYearFilter(v);
+              setClassFilter('all');
+            }}
+          >
+            <SelectTrigger className="h-9 w-[180px]">
+              <SelectValue placeholder={t('finance.reports.filter_academic_year')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('finance.reports.filter_all_years')}</SelectItem>
+              {years.map((y) => (
+                <SelectItem key={y.id} value={y.id}>
+                  {y.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">
+            {t('finance.reports.filter_class')}
+          </Label>
+          <Select
+            value={classFilter}
+            onValueChange={setClassFilter}
+          >
+            <SelectTrigger className="h-9 w-[160px]">
+              <SelectValue placeholder={t('finance.reports.filter_class')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('finance.reports.filter_all_classes')}</SelectItem>
+              {classes.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <Tabs defaultValue="collection">
         <TabsList>

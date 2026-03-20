@@ -1,5 +1,5 @@
-import React from 'react';
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
@@ -18,17 +18,50 @@ import { AttendanceReportsPage } from '@/pages/attendance/AttendanceReportsPage'
 import { FeeStructuresPage } from '@/pages/finance/FeeStructuresPage';
 import { FeePaymentsPage } from '@/pages/finance/FeePaymentsPage';
 import { FinancialReportsPage } from '@/pages/finance/FinancialReportsPage';
+import { SettingsPage } from '@/pages/settings/SettingsPage';
+import { SetupWizardPage } from '@/pages/setup/SetupWizardPage';
 import { useAuthStore } from '@/store/auth.store';
+import { setupApi } from '@/services/setup.service';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-}
+// ─── Guest route (redirect if already authenticated) ─────────────────────────
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+// ─── Protected route ──────────────────────────────────────────────────────────
+// Checks auth, then checks setup status.
+// /setup is exempt from the setupComplete redirect to avoid recursion.
+
+function ProtectedRoute({ children, skipSetupCheck = false }: { children: React.ReactNode; skipSetupCheck?: boolean }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const location = useLocation();
+  const [setupChecked, setSetupChecked] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthenticated || skipSetupCheck) {
+      setSetupChecked(true);
+      return;
+    }
+
+    setupApi
+      .getStatus()
+      .then((res) => {
+        setSetupComplete(res.setupComplete);
+      })
+      .catch(() => {
+        // If the endpoint fails (e.g. not yet implemented), treat as complete
+        setSetupComplete(true);
+      })
+      .finally(() => setSetupChecked(true));
+  }, [isAuthenticated, skipSetupCheck, location.pathname]);
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!setupChecked) return null; // brief blank while checking
+  if (!setupComplete && !skipSetupCheck) return <Navigate to="/setup" replace />;
   return <>{children}</>;
 }
 
@@ -42,6 +75,15 @@ const router = createBrowserRouter([
     children: [
       { path: '/login', element: <LoginPage /> },
     ],
+  },
+  // Setup wizard — needs auth but is exempt from the setupComplete redirect
+  {
+    path: '/setup',
+    element: (
+      <ProtectedRoute skipSetupCheck>
+        <SetupWizardPage />
+      </ProtectedRoute>
+    ),
   },
   {
     element: (
@@ -66,6 +108,7 @@ const router = createBrowserRouter([
       { path: '/finance/fee-structures', element: <FeeStructuresPage /> },
       { path: '/finance/payments', element: <FeePaymentsPage /> },
       { path: '/finance/reports', element: <FinancialReportsPage /> },
+      { path: '/settings', element: <SettingsPage /> },
     ],
   },
   { path: '/', element: <Navigate to="/dashboard" replace /> },

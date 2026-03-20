@@ -94,6 +94,10 @@ export function StudentFormPage() {
   React.useEffect(() => {
     if (studentData && isEdit) {
       const s = studentData;
+      // Restore cascading state so dropdowns populate correctly on edit
+      const yearId: string = s.class?.academicYearId ?? '';
+      setSelectedAcademicYearId(yearId);
+      setSelectedClassId(s.classId);
       form.reset({
         firstName: s.firstName,
         lastName: s.lastName,
@@ -101,6 +105,7 @@ export function StudentFormPage() {
         gender: s.gender,
         nationality: s.nationality,
         bloodGroup: s.bloodGroup ?? '',
+        academicYearId: yearId,
         classId: s.classId,
         sectionId: s.sectionId,
         rollNumber: s.rollNumber ?? '',
@@ -108,27 +113,27 @@ export function StudentFormPage() {
         rfidCardNumber: s.rfidCardNumber ?? '',
         status: s.status,
       });
-      setSelectedClassId(s.classId);
       if (s.photo) setPhotoPreview(s.photo);
     }
   }, [studentData, isEdit, form]);
 
-  // Academic years
+  // Academic years — always fetch so the dropdown is populated
   const { data: academicYearsData } = useQuery({
     queryKey: ['academic-years-list'],
     queryFn: () => academicYearApi.list({ limit: 50 }),
   });
   const { data: academicYears } = unwrapList<{ id: string; name: string }>(academicYearsData);
 
-  // Classes filtered by academic year
+  // Classes — only fetch after an academic year is selected
   const { data: classesData } = useQuery({
     queryKey: ['classes-form', selectedAcademicYearId],
     queryFn: () =>
-      classApi.list({ academicYearId: selectedAcademicYearId || undefined, limit: 100 }),
+      classApi.list({ academicYearId: selectedAcademicYearId, limit: 100 }),
+    enabled: !!selectedAcademicYearId,
   });
   const { data: classes } = unwrapList<{ id: string; name: string }>(classesData);
 
-  // Sections filtered by class
+  // Sections — only fetch after a class is selected
   const { data: sectionsData } = useQuery({
     queryKey: ['sections-form', selectedClassId],
     queryFn: () => apiClient.get('/sections', { params: { classId: selectedClassId, limit: 100 } }),
@@ -351,10 +356,15 @@ export function StudentFormPage() {
                         form.setValue('sectionId', '');
                       }}
                       value={field.value}
+                      disabled={!selectedAcademicYearId}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t('students.class')} />
+                          <SelectValue placeholder={
+                            selectedAcademicYearId
+                              ? t('students.class')
+                              : t('students.select_year_first')
+                          } />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

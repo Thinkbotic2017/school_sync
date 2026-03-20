@@ -1,10 +1,15 @@
-import { prisma } from '../../config/database';
+import { PrismaClient } from '@prisma/client';
 import { BadRequestError, ConflictError, NotFoundError } from '../../utils/errors';
 import { PAGINATION } from '../../utils/constants';
 import type { CreateClassDto, UpdateClassDto, ClassFilters } from './class.types';
 
+type DbClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
 export class ClassService {
-  async list(tenantId: string, filters: ClassFilters) {
+  async list(tenantId: string, filters: ClassFilters, db: DbClient) {
     const page = filters.page ?? PAGINATION.DEFAULT_PAGE;
     const limit = Math.min(filters.limit ?? PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * limit;
@@ -14,19 +19,20 @@ export class ClassService {
       ...(filters.academicYearId && { academicYearId: filters.academicYearId }),
     };
 
-    const [data, total] = await Promise.all([
-      prisma.class.findMany({
-        where,
-        orderBy: { numericOrder: 'asc' },
-        skip,
-        take: limit,
-        include: {
-          academicYear: { select: { id: true, name: true, calendarType: true } },
-          _count: { select: { sections: true, students: true } },
-        },
-      }),
-      prisma.class.count({ where }),
-    ]);
+    // Sequential queries on the same db client (required by RLS).
+    // NEVER use Promise.all with Prisma — each call would grab a different
+    // pool connection, losing the RLS set_config context.
+    const total = await db.class.count({ where });
+    const data = await db.class.findMany({
+      where,
+      orderBy: { numericOrder: 'asc' },
+      skip,
+      take: limit,
+      include: {
+        academicYear: { select: { id: true, name: true, calendarType: true } },
+        _count: { select: { sections: true, students: true } },
+      },
+    });
 
     return {
       data,
@@ -39,8 +45,8 @@ export class ClassService {
     };
   }
 
-  async getById(tenantId: string, id: string) {
-    const cls = await prisma.class.findFirst({
+  async getById(tenantId: string, id: string, db: DbClient) {
+    const cls = await db.class.findFirst({
       where: { id, tenantId },
       include: {
         academicYear: { select: { id: true, name: true, calendarType: true } },
@@ -56,8 +62,8 @@ export class ClassService {
     return cls;
   }
 
-  async create(tenantId: string, dto: CreateClassDto) {
-    const existing = await prisma.class.findFirst({
+  async create(tenantId: string, dto: CreateClassDto, db: DbClient) {
+    const existing = await db.class.findFirst({
       where: { tenantId, name: dto.name, academicYearId: dto.academicYearId },
     });
 
@@ -68,14 +74,14 @@ export class ClassService {
     }
 
     // Verify the academic year belongs to this tenant
-    const academicYear = await prisma.academicYear.findFirst({
+    const academicYear = await db.academicYear.findFirst({
       where: { id: dto.academicYearId, tenantId },
     });
     if (!academicYear) {
       throw new NotFoundError('Academic year not found');
     }
 
-    return prisma.class.create({
+    return db.class.create({
       data: {
         tenantId,
         name: dto.name,
@@ -88,8 +94,8 @@ export class ClassService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateClassDto) {
-    const existing = await prisma.class.findFirst({ where: { id, tenantId } });
+  async update(tenantId: string, id: string, dto: UpdateClassDto, db: DbClient) {
+    const existing = await db.class.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Class not found');
     }
@@ -99,7 +105,7 @@ export class ClassService {
       const newName = dto.name ?? existing.name;
       const newAcademicYearId = dto.academicYearId ?? existing.academicYearId;
 
-      const conflict = await prisma.class.findFirst({
+      const conflict = await db.class.findFirst({
         where: {
           tenantId,
           name: newName,
@@ -116,7 +122,7 @@ export class ClassService {
     }
 
     if (dto.academicYearId) {
-      const academicYear = await prisma.academicYear.findFirst({
+      const academicYear = await db.academicYear.findFirst({
         where: { id: dto.academicYearId, tenantId },
       });
       if (!academicYear) {
@@ -124,7 +130,7 @@ export class ClassService {
       }
     }
 
-    return prisma.class.update({
+    return db.class.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -138,21 +144,21 @@ export class ClassService {
     });
   }
 
-  async delete(tenantId: string, id: string) {
-    const existing = await prisma.class.findFirst({ where: { id, tenantId } });
+  async delete(tenantId: string, id: string, db: DbClient) {
+    const existing = await db.class.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Class not found');
     }
 
-    const studentCount = await prisma.student.count({ where: { classId: id, tenantId } });
+    const studentCount = await db.student.count({ where: { classId: id, tenantId } });
     if (studentCount > 0) {
       throw new BadRequestError(
-        `Cannot delete class with ${studentCount} linked student(s). Reassign or remove students first.`,
+        `Cannot deactivate class with ${studentCount} linked student(s). Reassign or remove students first.`,
       );
     }
 
-    await prisma.class.delete({ where: { id } });
-    return { message: 'Class deleted successfully' };
+    await db.class.update({ where: { id }, data: { isActive: false } });
+    return { message: 'Class deactivated successfully' };
   }
 }
 

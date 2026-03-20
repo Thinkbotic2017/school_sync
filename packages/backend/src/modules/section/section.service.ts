@@ -1,10 +1,15 @@
-import { prisma } from '../../config/database';
+import { PrismaClient } from '@prisma/client';
 import { BadRequestError, ConflictError, NotFoundError } from '../../utils/errors';
 import { PAGINATION } from '../../utils/constants';
 import type { CreateSectionDto, UpdateSectionDto, SectionFilters } from './section.types';
 
+type DbClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
 export class SectionService {
-  async list(tenantId: string, filters: SectionFilters) {
+  async list(tenantId: string, filters: SectionFilters, db: DbClient) {
     const page = filters.page ?? PAGINATION.DEFAULT_PAGE;
     const limit = Math.min(filters.limit ?? PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * limit;
@@ -14,19 +19,20 @@ export class SectionService {
       ...(filters.classId && { classId: filters.classId }),
     };
 
-    const [data, total] = await Promise.all([
-      prisma.section.findMany({
-        where,
-        orderBy: { name: 'asc' },
-        skip,
-        take: limit,
-        include: {
-          class: { select: { id: true, name: true, numericOrder: true } },
-          _count: { select: { students: true } },
-        },
-      }),
-      prisma.section.count({ where }),
-    ]);
+    // Sequential queries on the same db client (required by RLS).
+    // NEVER use Promise.all with Prisma — each call would grab a different
+    // pool connection, losing the RLS set_config context.
+    const total = await db.section.count({ where });
+    const data = await db.section.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      skip,
+      take: limit,
+      include: {
+        class: { select: { id: true, name: true, numericOrder: true } },
+        _count: { select: { students: true } },
+      },
+    });
 
     return {
       data,
@@ -39,8 +45,8 @@ export class SectionService {
     };
   }
 
-  async getById(tenantId: string, id: string) {
-    const section = await prisma.section.findFirst({
+  async getById(tenantId: string, id: string, db: DbClient) {
+    const section = await db.section.findFirst({
       where: { id, tenantId },
       include: {
         class: {
@@ -62,21 +68,21 @@ export class SectionService {
     return section;
   }
 
-  async create(tenantId: string, dto: CreateSectionDto) {
+  async create(tenantId: string, dto: CreateSectionDto, db: DbClient) {
     // Verify classId belongs to this tenant
-    const cls = await prisma.class.findFirst({ where: { id: dto.classId, tenantId } });
+    const cls = await db.class.findFirst({ where: { id: dto.classId, tenantId } });
     if (!cls) {
       throw new NotFoundError('Class not found');
     }
 
-    const existing = await prisma.section.findFirst({
+    const existing = await db.section.findFirst({
       where: { tenantId, classId: dto.classId, name: dto.name },
     });
     if (existing) {
       throw new ConflictError(`Section "${dto.name}" already exists in this class`);
     }
 
-    return prisma.section.create({
+    return db.section.create({
       data: {
         tenantId,
         classId: dto.classId,
@@ -89,14 +95,14 @@ export class SectionService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateSectionDto) {
-    const existing = await prisma.section.findFirst({ where: { id, tenantId } });
+  async update(tenantId: string, id: string, dto: UpdateSectionDto, db: DbClient) {
+    const existing = await db.section.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Section not found');
     }
 
     if (dto.classId) {
-      const cls = await prisma.class.findFirst({ where: { id: dto.classId, tenantId } });
+      const cls = await db.class.findFirst({ where: { id: dto.classId, tenantId } });
       if (!cls) {
         throw new NotFoundError('Class not found');
       }
@@ -107,7 +113,7 @@ export class SectionService {
       const newName = dto.name ?? existing.name;
       const newClassId = dto.classId ?? existing.classId;
 
-      const conflict = await prisma.section.findFirst({
+      const conflict = await db.section.findFirst({
         where: {
           tenantId,
           classId: newClassId,
@@ -120,7 +126,7 @@ export class SectionService {
       }
     }
 
-    return prisma.section.update({
+    return db.section.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -133,21 +139,21 @@ export class SectionService {
     });
   }
 
-  async delete(tenantId: string, id: string) {
-    const existing = await prisma.section.findFirst({ where: { id, tenantId } });
+  async delete(tenantId: string, id: string, db: DbClient) {
+    const existing = await db.section.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Section not found');
     }
 
-    const studentCount = await prisma.student.count({ where: { sectionId: id, tenantId } });
+    const studentCount = await db.student.count({ where: { sectionId: id, tenantId } });
     if (studentCount > 0) {
       throw new BadRequestError(
-        `Cannot delete section with ${studentCount} linked student(s). Reassign or remove students first.`,
+        `Cannot deactivate section with ${studentCount} linked student(s). Reassign or remove students first.`,
       );
     }
 
-    await prisma.section.delete({ where: { id } });
-    return { message: 'Section deleted successfully' };
+    await db.section.update({ where: { id }, data: { isActive: false } });
+    return { message: 'Section deactivated successfully' };
   }
 }
 

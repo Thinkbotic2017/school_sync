@@ -1,0 +1,108 @@
+export const ethiopiaDefaults = {
+  general: {
+    country: 'ET',
+    currency: 'ETB',
+    calendarType: 'ETHIOPIAN',
+    timezone: 'Africa/Addis_Ababa',
+    locale: 'am',
+    secondaryLocale: 'en',
+  },
+  grading: {
+    scale: [
+      { letter: 'A', min: 90, max: 100, gpa: 4.0, description: 'Excellent' },
+      { letter: 'B', min: 80, max: 89, gpa: 3.0, description: 'Very Good' },
+      { letter: 'C', min: 60, max: 79, gpa: 2.0, description: 'Good' },
+      { letter: 'D', min: 50, max: 59, gpa: 1.0, description: 'Pass' },
+      { letter: 'F', min: 0, max: 49, gpa: 0.0, description: 'Fail' },
+    ],
+    passingGrade: 'D',
+    minimumPassPercentage: 50,
+  },
+  assessment: {
+    gradeGroups: [
+      {
+        name: 'Lower Primary',
+        grades: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4'],
+        caWeight: 100,
+        examWeight: 0,
+        categories: [
+          { name: 'Quizzes', weight: 20 },
+          { name: 'Assignments', weight: 30 },
+          { name: 'Projects', weight: 20 },
+          { name: 'Participation', weight: 30 },
+        ],
+      },
+      {
+        name: 'Upper Primary',
+        grades: ['Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'],
+        caWeight: 60,
+        examWeight: 40,
+        categories: [
+          { name: 'Quizzes', weight: 15 },
+          { name: 'Assignments', weight: 15 },
+          { name: 'Mid-term', weight: 15 },
+          { name: 'Projects', weight: 15 },
+        ],
+      },
+      {
+        name: 'Secondary',
+        grades: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+        caWeight: 50,
+        examWeight: 50,
+        categories: [
+          { name: 'Quizzes', weight: 10 },
+          { name: 'Assignments', weight: 15 },
+          { name: 'Mid-term', weight: 15 },
+          { name: 'Projects', weight: 10 },
+        ],
+      },
+    ],
+  },
+  promotion: {
+    minimumOverallAverage: 50,
+    maximumFailedSubjects: 2,
+    autoPromoteGrades: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4'],
+    reExamAllowed: true,
+    reExamMaxAttempts: 1,
+    rankingEnabledFromGrade: 'Grade 7',
+  },
+  operations: {
+    workingDays: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+    schoolStartTime: '08:00',
+    schoolEndTime: '15:30',
+    graceMinutes: 15,
+    periodsPerDay: 7,
+    periodDurationMinutes: 45,
+    attendanceMode: 'DAILY',
+    breaks: [
+      { name: 'Morning Break', afterPeriod: 2, duration: 15 },
+      { name: 'Lunch', afterPeriod: 4, duration: 60 },
+    ],
+  },
+  fees: {
+    currency: 'ETB',
+    latePenalty: { graceDays: 15, penaltyPercent: 2.5, maxPenaltyPercent: 10 },
+    clearanceRequired: ['REPORT_CARD', 'TRANSFER_CERTIFICATE', 'NEXT_YEAR_ENROLLMENT'],
+    paymentMethods: ['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CHEQUE'],
+    discounts: {
+      sibling: { '2nd': 0, '3rd': 5, '4th': 10 },
+      fullPaymentAnnual: 5,
+    },
+  },
+  attendance: {
+    mode: 'DAILY',
+    graceMinutes: 15,
+    notifyOnAbsence: true,
+    notificationChannels: ['PUSH', 'SMS'],
+  },
+  reportCard: {
+    showRank: true,
+    showAttendance: true,
+    showConduct: true,
+    showTeacherRemarks: true,
+    showPrincipalRemarks: true,
+    showPhoto: false,
+    languages: ['en', 'am'],
+    primaryLanguage: 'en',
+  },
+};

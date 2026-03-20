@@ -1,24 +1,31 @@
-import { CalendarType } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { CalendarType, PrismaClient } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '../../utils/errors';
 import { PAGINATION } from '../../utils/constants';
 import type { CreateAcademicYearDto, UpdateAcademicYearDto, AcademicYearFilters } from './academic-year.types';
 
+type DbClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
 export class AcademicYearService {
-  async list(tenantId: string, filters: AcademicYearFilters) {
+  async list(tenantId: string, filters: AcademicYearFilters, db: DbClient) {
     const page = filters.page ?? PAGINATION.DEFAULT_PAGE;
     const limit = Math.min(filters.limit ?? PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      prisma.academicYear.findMany({
-        where: { tenantId },
-        orderBy: { startDate: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.academicYear.count({ where: { tenantId } }),
-    ]);
+    const where = { tenantId };
+
+    // Sequential queries on the same db client (required by RLS).
+    // NEVER use Promise.all with Prisma — each call would grab a different
+    // pool connection, losing the RLS set_config context.
+    const total = await db.academicYear.count({ where });
+    const data = await db.academicYear.findMany({
+      where,
+      orderBy: { startDate: 'desc' },
+      skip,
+      take: limit,
+    });
 
     return {
       data,
@@ -31,8 +38,8 @@ export class AcademicYearService {
     };
   }
 
-  async getById(tenantId: string, id: string) {
-    const academicYear = await prisma.academicYear.findFirst({
+  async getById(tenantId: string, id: string, db: DbClient) {
+    const academicYear = await db.academicYear.findFirst({
       where: { id, tenantId },
       include: {
         classes: {
@@ -48,7 +55,7 @@ export class AcademicYearService {
     return academicYear;
   }
 
-  async create(tenantId: string, dto: CreateAcademicYearDto) {
+  async create(tenantId: string, dto: CreateAcademicYearDto, db: DbClient) {
     const data = {
       tenantId,
       name: dto.name,
@@ -59,7 +66,7 @@ export class AcademicYearService {
     };
 
     if (data.isCurrent) {
-      return prisma.$transaction(async (tx) => {
+      return (db as PrismaClient).$transaction(async (tx) => {
         await tx.academicYear.updateMany({
           where: { tenantId, isCurrent: true },
           data: { isCurrent: false },
@@ -68,16 +75,16 @@ export class AcademicYearService {
       });
     }
 
-    return prisma.academicYear.create({ data });
+    return db.academicYear.create({ data });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateAcademicYearDto) {
-    const existing = await prisma.academicYear.findFirst({ where: { id, tenantId } });
+  async update(tenantId: string, id: string, dto: UpdateAcademicYearDto, db: DbClient) {
+    const existing = await db.academicYear.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Academic year not found');
     }
 
-    const data = {
+    const updateData = {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.startDate !== undefined && { startDate: new Date(dto.startDate) }),
       ...(dto.endDate !== undefined && { endDate: new Date(dto.endDate) }),
@@ -86,42 +93,42 @@ export class AcademicYearService {
     };
 
     if (dto.isCurrent === true) {
-      return prisma.$transaction(async (tx) => {
+      return (db as PrismaClient).$transaction(async (tx) => {
         await tx.academicYear.updateMany({
           where: { tenantId, isCurrent: true, id: { not: id } },
           data: { isCurrent: false },
         });
-        return tx.academicYear.update({ where: { id }, data });
+        return tx.academicYear.update({ where: { id }, data: updateData });
       });
     }
 
-    return prisma.academicYear.update({ where: { id }, data });
+    return db.academicYear.update({ where: { id }, data: updateData });
   }
 
-  async delete(tenantId: string, id: string) {
-    const existing = await prisma.academicYear.findFirst({ where: { id, tenantId } });
+  async delete(tenantId: string, id: string, db: DbClient) {
+    const existing = await db.academicYear.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Academic year not found');
     }
 
-    const classCount = await prisma.class.count({ where: { academicYearId: id, tenantId } });
+    const classCount = await db.class.count({ where: { academicYearId: id, tenantId } });
     if (classCount > 0) {
       throw new BadRequestError(
-        `Cannot delete academic year with ${classCount} linked class(es). Remove or reassign classes first.`,
+        `Cannot deactivate academic year with ${classCount} linked class(es). Deactivate or reassign classes first.`,
       );
     }
 
-    await prisma.academicYear.delete({ where: { id } });
-    return { message: 'Academic year deleted successfully' };
+    await db.academicYear.update({ where: { id }, data: { isActive: false } });
+    return { message: 'Academic year deactivated successfully' };
   }
 
-  async setCurrent(tenantId: string, id: string) {
-    const existing = await prisma.academicYear.findFirst({ where: { id, tenantId } });
+  async setCurrent(tenantId: string, id: string, db: DbClient) {
+    const existing = await db.academicYear.findFirst({ where: { id, tenantId } });
     if (!existing) {
       throw new NotFoundError('Academic year not found');
     }
 
-    return prisma.$transaction(async (tx) => {
+    return (db as PrismaClient).$transaction(async (tx) => {
       await tx.academicYear.updateMany({
         where: { tenantId, isCurrent: true },
         data: { isCurrent: false },

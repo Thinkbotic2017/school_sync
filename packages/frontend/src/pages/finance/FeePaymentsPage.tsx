@@ -42,7 +42,7 @@ import {
   FeeStructure,
   PaymentMethod,
 } from '@/services/fee.service';
-import { classApi, Class } from '@/services/academic.service';
+import { classApi, sectionApi, Class, Section } from '@/services/academic.service';
 import { unwrapList } from '@/lib/api-helpers';
 import { formatETB } from '@/utils/currency';
 
@@ -92,6 +92,7 @@ export function FeePaymentsPage() {
   const [searchInput, setSearchInput] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [classFilter, setClassFilter] = React.useState('all');
+  const [sectionFilter, setSectionFilter] = React.useState('all');
   const [feeTypeFilter, setFeeTypeFilter] = React.useState('all');
 
   // ── Dialog state ──────────────────────────────────────────────────────────
@@ -106,6 +107,7 @@ export function FeePaymentsPage() {
     ...(search ? { search } : {}),
     ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
     ...(classFilter !== 'all' ? { classId: classFilter } : {}),
+    ...(sectionFilter !== 'all' ? { sectionId: sectionFilter } : {}),
     ...(feeTypeFilter !== 'all' ? { feeStructureId: feeTypeFilter } : {}),
   };
 
@@ -120,6 +122,14 @@ export function FeePaymentsPage() {
     queryFn: () => classApi.list({ limit: 200 }),
   });
   const { data: classes } = unwrapList<Class>(classesRes);
+
+  // Sections cascade from classFilter
+  const { data: sectionsRes } = useQuery({
+    queryKey: ['sections', classFilter],
+    queryFn: () => sectionApi.list({ classId: classFilter, limit: 100 }),
+    enabled: classFilter !== 'all',
+  });
+  const { data: sections } = unwrapList<Section>(sectionsRes);
 
   const { data: structuresRes } = useQuery({
     queryKey: ['fee-structures'],
@@ -346,6 +356,7 @@ export function FeePaymentsPage() {
           value={classFilter}
           onValueChange={(v) => {
             setClassFilter(v);
+            setSectionFilter('all');
             setPage(1);
           }}
         >
@@ -357,6 +368,27 @@ export function FeePaymentsPage() {
             {classes.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={sectionFilter}
+          onValueChange={(v) => {
+            setSectionFilter(v);
+            setPage(1);
+          }}
+          disabled={classFilter === 'all'}
+        >
+          <SelectTrigger className="h-9 w-[140px]">
+            <SelectValue placeholder={t('finance.payments.filter_section')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('finance.payments.filter_section')}</SelectItem>
+            {sections.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>

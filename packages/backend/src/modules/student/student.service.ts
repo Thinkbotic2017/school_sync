@@ -71,19 +71,20 @@ export const studentService = {
         : {}),
     };
 
-    const [students, total] = await Promise.all([
-      prisma.student.findMany({
-        where,
-        include: {
-          class: { select: { id: true, name: true } },
-          section: { select: { id: true, name: true } },
-        },
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-        skip,
-        take: limit,
-      }),
-      prisma.student.count({ where }),
-    ]);
+    // Sequential queries on the same connection (required by RLS).
+    // NEVER use Promise.all with Prisma — each call grabs a different pool
+    // connection, losing the RLS set_config context.
+    const total = await prisma.student.count({ where });
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        class: { select: { id: true, name: true } },
+        section: { select: { id: true, name: true } },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      skip,
+      take: limit,
+    });
 
     return {
       data: students,

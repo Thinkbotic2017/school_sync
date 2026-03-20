@@ -29,6 +29,7 @@ import {
   Calendar,
   FileText,
   Settings,
+  School,
   Menu,
   X,
   ChevronRight,
@@ -49,24 +50,32 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   i18nKey: string;
   children?: NavChild[];
+  disabled?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard' },
   { to: '/students', icon: GraduationCap, i18nKey: 'nav.students' },
-  { to: '/teachers', icon: Users, i18nKey: 'nav.teachers' },
-  { to: '/staff', icon: UserCheck, i18nKey: 'nav.staff' },
-  { to: '/parents', icon: Heart, i18nKey: 'nav.parents' },
+  {
+    icon: School,
+    i18nKey: 'nav.school_setup',
+    children: [
+      { to: '/academic-years', i18nKey: 'nav.academic_years' },
+      { to: '/classes', i18nKey: 'nav.classes' },
+      { to: '/sections', i18nKey: 'nav.sections' },
+      { to: '/subjects', i18nKey: 'nav.subjects' },
+      { to: '/settings', i18nKey: 'nav.settings' },
+    ],
+  },
   {
     icon: ClipboardCheck,
     i18nKey: 'nav.attendance',
     children: [
-      { to: '/attendance', i18nKey: 'nav.attendance_daily' },
       { to: '/attendance/live', i18nKey: 'nav.attendance_live' },
+      { to: '/attendance', i18nKey: 'nav.attendance_daily' },
       { to: '/attendance/reports', i18nKey: 'nav.attendance_reports' },
     ],
   },
-  { to: '/exams', icon: BookOpen, i18nKey: 'nav.exams' },
   {
     icon: CreditCard,
     i18nKey: 'nav.finance',
@@ -76,12 +85,10 @@ const NAV_ITEMS: NavItem[] = [
       { to: '/finance/reports', i18nKey: 'nav.finance_reports' },
     ],
   },
-  { to: '/transport', icon: Bus, i18nKey: 'nav.transport' },
-  { to: '/communication', icon: MessageSquare, i18nKey: 'nav.communication' },
-  { to: '/timetable', icon: Calendar, i18nKey: 'nav.timetable' },
-  { to: '/homework', icon: FileText, i18nKey: 'nav.homework' },
-  { to: '/reports', icon: FileText, i18nKey: 'nav.reports' },
-  { to: '/settings', icon: Settings, i18nKey: 'nav.settings' },
+  { to: '#', icon: Users, i18nKey: 'nav.teachers', disabled: true },
+  { to: '#', icon: Heart, i18nKey: 'nav.parents', disabled: true },
+  { to: '#', icon: Bus, i18nKey: 'nav.transport', disabled: true },
+  { to: '#', icon: MessageSquare, i18nKey: 'nav.communication', disabled: true },
 ];
 
 export function DashboardLayout() {
@@ -93,6 +100,12 @@ export function DashboardLayout() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'nav.attendance': location.pathname.startsWith('/attendance'),
     'nav.finance': location.pathname.startsWith('/finance'),
+    'nav.school_setup':
+      location.pathname.startsWith('/academic-years') ||
+      location.pathname.startsWith('/classes') ||
+      location.pathname.startsWith('/sections') ||
+      location.pathname.startsWith('/subjects') ||
+      location.pathname.startsWith('/settings'),
   });
 
   const toggleGroup = (key: string) => {
@@ -135,7 +148,7 @@ export function DashboardLayout() {
         {/* School name */}
         {user?.tenant && (
           <div className="px-4 py-2.5 border-b border-sidebar-border">
-            <p className="text-xs text-sidebar-foreground/60 uppercase tracking-wider font-medium">School</p>
+            <p className="text-xs text-sidebar-foreground/60 uppercase tracking-wider font-medium">{t('nav.school_setup')}</p>
             <p className="text-sm font-medium text-sidebar-foreground truncate mt-0.5">{user.tenant.name}</p>
           </div>
         )}
@@ -198,6 +211,20 @@ export function DashboardLayout() {
             }
 
             // Regular flat nav item
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.i18nKey}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium mb-0.5 text-sidebar-foreground/30 cursor-not-allowed select-none"
+                  title={t('nav.coming_soon')}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{t(item.i18nKey)}</span>
+                  <span className="ml-auto text-[10px] font-normal opacity-60">{t('nav.soon')}</span>
+                </div>
+              );
+            }
+
             return (
               <NavLink
                 key={item.to}
@@ -222,7 +249,7 @@ export function DashboardLayout() {
         {/* Sidebar footer */}
         <div className="px-4 py-3 border-t border-sidebar-border">
           <p className="text-xs text-sidebar-foreground/40 text-center">
-            {user?.tenant?.plan} Plan
+            {t('nav.plan_label', { plan: user?.tenant?.plan })}
           </p>
         </div>
       </aside>
@@ -278,7 +305,7 @@ export function DashboardLayout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <KeyRound className="h-4 w-4 mr-2" />
-                  Change Password
+                  {t('auth.change_password.title')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

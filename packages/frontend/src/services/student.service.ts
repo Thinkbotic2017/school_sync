@@ -17,7 +17,7 @@ export interface Student {
   rollNumber?: string;
   admissionDate: string;
   status: 'ACTIVE' | 'INACTIVE' | 'GRADUATED' | 'TRANSFERRED' | 'SUSPENDED';
-  class?: { id: string; name: string };
+  class?: { id: string; name: string; academicYearId: string };
   section?: { id: string; name: string };
   parentLinks?: ParentLink[];
   documents?: StudentDocument[];

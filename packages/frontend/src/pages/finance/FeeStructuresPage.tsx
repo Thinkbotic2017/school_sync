@@ -81,6 +81,8 @@ export function FeeStructuresPage() {
   const [editTarget, setEditTarget] = React.useState<FeeStructure | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<FeeStructure | null>(null);
   const [generateTarget, setGenerateTarget] = React.useState<FeeStructure | null>(null);
+  // Track selected academic year in the dialog for cascading class dropdown
+  const [dialogAcademicYearId, setDialogAcademicYearId] = React.useState('');
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -90,9 +92,11 @@ export function FeeStructuresPage() {
   });
   const { data: structures, meta } = unwrapList<FeeStructure>(structuresRes);
 
+  // Classes filtered by the academic year selected inside the dialog
   const { data: classesRes } = useQuery({
-    queryKey: ['classes', 'all'],
-    queryFn: () => classApi.list({ limit: 200 }),
+    queryKey: ['classes-fee-dialog', dialogAcademicYearId],
+    queryFn: () => classApi.list({ academicYearId: dialogAcademicYearId, limit: 200 }),
+    enabled: !!dialogAcademicYearId,
   });
   const { data: classes } = unwrapList<Class>(classesRes);
 
@@ -171,17 +175,20 @@ export function FeeStructuresPage() {
 
   const openCreate = () => {
     setEditTarget(null);
+    const defaultYearId = years[0]?.id ?? '';
+    setDialogAcademicYearId(defaultYearId);
     form.reset({
       name: '',
       frequency: 'MONTHLY',
       classId: 'all',
-      academicYearId: years[0]?.id ?? '',
+      academicYearId: defaultYearId,
     });
     setDialogOpen(true);
   };
 
   const openEdit = (s: FeeStructure) => {
     setEditTarget(s);
+    setDialogAcademicYearId(s.academicYearId);
     form.reset({
       name: s.name,
       amount: s.amount,
@@ -396,7 +403,7 @@ export function FeeStructuresPage() {
                 )}
               />
 
-              {/* Academic Year — only shown on create */}
+              {/* Academic Year — only shown on create; cascades to class dropdown */}
               {!editTarget && (
                 <FormField
                   control={form.control}
@@ -404,10 +411,18 @@ export function FeeStructuresPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('finance.fee_structures.academic_year')}</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          setDialogAcademicYearId(val);
+                          // Reset class when year changes
+                          form.setValue('classId', 'all');
+                        }}
+                      >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder={t('finance.fee_structures.academic_year')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -424,17 +439,21 @@ export function FeeStructuresPage() {
                 />
               )}
 
-              {/* Class (optional) */}
+              {/* Class (optional) — filtered by selected academic year */}
               <FormField
                 control={form.control}
                 name="classId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('finance.fee_structures.class')}</FormLabel>
-                    <Select value={field.value ?? 'all'} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value ?? 'all'}
+                      onValueChange={field.onChange}
+                      disabled={!dialogAcademicYearId}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder={t('finance.fee_structures.all_classes')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

@@ -17,7 +17,7 @@ export class SectionController {
           page: page ? Number(page) : undefined,
           limit: limit ? Number(limit) : undefined,
         },
-        req.db,
+        req.db!,
       );
       res.json({ success: true, ...result });
     } catch (err) {
@@ -28,7 +28,7 @@ export class SectionController {
   async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.auth!.tenantId;
-      const data = await sectionService.getById(tenantId, req.params.id, req.db);
+      const data = await sectionService.getById(tenantId, req.params.id, req.db!);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -38,7 +38,7 @@ export class SectionController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.auth!.tenantId;
-      const data = await sectionService.create(tenantId, req.body, req.db);
+      const data = await sectionService.create(tenantId, req.body, req.db!);
       res.status(201).json({ success: true, data });
     } catch (err) {
       next(err);
@@ -48,7 +48,7 @@ export class SectionController {
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.auth!.tenantId;
-      const data = await sectionService.update(tenantId, req.params.id, req.body, req.db);
+      const data = await sectionService.update(tenantId, req.params.id, req.body, req.db!);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -58,7 +58,7 @@ export class SectionController {
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.auth!.tenantId;
-      const data = await sectionService.delete(tenantId, req.params.id, req.db);
+      const data = await sectionService.delete(tenantId, req.params.id, req.db!);
       res.json({ success: true, data });
     } catch (err) {
       next(err);

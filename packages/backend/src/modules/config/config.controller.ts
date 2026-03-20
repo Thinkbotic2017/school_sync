@@ -10,7 +10,7 @@ export class ConfigController {
   async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const tenantId = req.auth!.tenantId;
-      const data = await configService.getAllConfigs(tenantId, req.db);
+      const data = await configService.getAllConfigs(tenantId, req.db!);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -25,7 +25,7 @@ export class ConfigController {
     try {
       const tenantId = req.auth!.tenantId;
       const category = req.params.category as ConfigCategory;
-      const data = await configService.getConfig(tenantId, category, req.db);
+      const data = await configService.getConfig(tenantId, category, req.db!);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -41,7 +41,7 @@ export class ConfigController {
       const tenantId = req.auth!.tenantId;
       const userId = req.auth!.userId;
       const category = req.params.category as ConfigCategory;
-      const data = await configService.updateConfig(tenantId, category, req.body, userId, req.db);
+      const data = await configService.updateConfig(tenantId, category, req.body, userId, req.db!);
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -57,7 +57,7 @@ export class ConfigController {
       const tenantId = req.auth!.tenantId;
       const userId = req.auth!.userId;
       const { country } = req.body as { country: string };
-      const data = await configService.initializeDefaults(tenantId, country, userId, req.db);
+      const data = await configService.initializeDefaults(tenantId, country, userId, req.db!);
       res.status(201).json({ success: true, data });
     } catch (err) {
       next(err);

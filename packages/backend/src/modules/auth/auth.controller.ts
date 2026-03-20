@@ -12,7 +12,7 @@ export class AuthController {
         return;
       }
 
-      const tokens = await authService.login(req.tenant.id, req.body);
+      const tokens = await authService.login(req.tenant.id, req.body, req.db!);
       res.json({ success: true, data: tokens });
     } catch (err) {
       next(err);
@@ -21,7 +21,7 @@ export class AuthController {
 
   async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tokens = await authService.refreshTokens(req.body.refreshToken);
+      const tokens = await authService.refreshTokens(req.body.refreshToken, req.db!);
       res.json({ success: true, data: tokens });
     } catch (err) {
       next(err);
@@ -30,7 +30,7 @@ export class AuthController {
 
   async me(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const user = await authService.getMe(req.auth!.userId);
+      const user = await authService.getMe(req.auth!.userId, req.db!);
       res.json({ success: true, data: user });
     } catch (err) {
       next(err);
@@ -39,7 +39,7 @@ export class AuthController {
 
   async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await authService.changePassword(req.auth!.userId, req.body);
+      await authService.changePassword(req.auth!.userId, req.body, req.db!);
       res.json({ success: true, data: { message: 'Password changed successfully' } });
     } catch (err) {
       next(err);

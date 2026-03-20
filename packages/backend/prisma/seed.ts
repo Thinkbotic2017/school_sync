@@ -79,7 +79,7 @@ async function main() {
 
   const addisAdmin = await prisma.user.upsert({
     where: { tenantId_email: { tenantId: addis.id, email: 'admin@addis.edu.et' } },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       tenantId: addis.id,
       email: 'admin@addis.edu.et',
@@ -128,7 +128,7 @@ async function main() {
 
   const hawassaAdmin = await prisma.user.upsert({
     where: { tenantId_email: { tenantId: hawassa.id, email: 'admin@hawassa.edu.et' } },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       tenantId: hawassa.id,
       email: 'admin@hawassa.edu.et',
